@@ -52,7 +52,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 REPORT_PATH = PROJECT_ROOT / "docs" / "agent_investigation_report.md"
 EVIDENCE_JSON_PATH = PROJECT_ROOT / "docs" / "investigation_evidence.json"
 
-API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyBANJ5T3mMQijrOC0X2zfmESfRqkKKBMUE")
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable not set. Please add it to your .env file.")
+
 MODEL_NAME = "gemini-2.0-flash"
 MAX_STEPS = 25
 API_DELAY_SECONDS = 4  # Delay between API calls to stay under free-tier rate limits
