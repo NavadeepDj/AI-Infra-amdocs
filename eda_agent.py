@@ -52,7 +52,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 REPORT_PATH = PROJECT_ROOT / "docs" / "agent_investigation_report.md"
 EVIDENCE_JSON_PATH = PROJECT_ROOT / "docs" / "investigation_evidence.json"
 
-MAX_STEPS = 25
+MAX_STEPS = 150
 API_DELAY_SECONDS = 1  # Delay between API calls to stay under limits
 MAX_RETRIES = 3        # Number of retries on API errors
 
