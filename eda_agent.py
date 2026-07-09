@@ -52,20 +52,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 REPORT_PATH = PROJECT_ROOT / "docs" / "agent_investigation_report.md"
 EVIDENCE_JSON_PATH = PROJECT_ROOT / "docs" / "investigation_evidence.json"
 
-API_KEY = os.environ.get("OPENCODE_API_KEY")
-if not API_KEY:
-    raise ValueError("OPENCODE_API_KEY environment variable not set. Please add it to your .env file.")
-
-PRIORITIZED_MODELS = [
-    "deepseek-v4-flash-free",
-    "mimo-v2.5-free",
-    "north-mini-code-free",
-    "nemotron-3-ultra-free",
-    "big-pickle"
-]
 MAX_STEPS = 25
-API_DELAY_SECONDS = 1  # OpenCode Zen free tier has high limits, 1s delay is safe
-MAX_RETRIES = 3        # Number of retries on rate-limit (429) errors
+API_DELAY_SECONDS = 1  # Delay between API calls to stay under limits
+MAX_RETRIES = 3        # Number of retries on API errors
+
+# Optional Google GenAI SDK import
+try:
+    from google import genai
+    HAS_GEMINI_SDK = True
+except ImportError:
+    HAS_GEMINI_SDK = False
 
 # ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -202,7 +198,47 @@ class ExplainableDataAgent:
         self.evidence = EvidenceStore()
         self.start_time = datetime.now()
         self.conversation_history = []
-        self.current_model = PRIORITIZED_MODELS[0]
+
+        # Determine API Provider dynamically based on environment keys
+        opencode_key = os.environ.get("OPENCODE_API_KEY")
+        gemini_key = os.environ.get("GEMINI_API_KEY")
+
+        if opencode_key:
+            self.provider = "opencode"
+            self.api_key = opencode_key
+            self.prioritized_models = [
+                "deepseek-v4-flash-free",
+                "mimo-v2.5-free",
+                "north-mini-code-free",
+                "nemotron-3-ultra-free",
+                "big-pickle"
+            ]
+            self.current_model = self.prioritized_models[0]
+            print(f"[AGENT BRAIN] Initialized OpenCode Zen API gateway. Prioritizing: {self.current_model}")
+        elif gemini_key:
+            self.provider = "gemini"
+            self.api_key = gemini_key
+            self.prioritized_models = [
+                "gemini-2.0-flash",
+                "gemini-2.5-flash",
+                "gemini-3.1-flash-lite",
+                "gemini-2.5-pro",
+                "gemini-3.5-flash"
+            ]
+            self.current_model = self.prioritized_models[0]
+            if HAS_GEMINI_SDK:
+                try:
+                    self.client = genai.Client(api_key=self.api_key)
+                    self.has_sdk = True
+                    print(f"[AGENT BRAIN] Initialized Gemini API via SDK. Prioritizing: {self.current_model}")
+                except Exception:
+                    self.has_sdk = False
+                    print(f"[AGENT BRAIN] Initialized Gemini API via REST. Prioritizing: {self.current_model}")
+            else:
+                self.has_sdk = False
+                print(f"[AGENT BRAIN] Initialized Gemini API via REST. Prioritizing: {self.current_model}")
+        else:
+            raise ValueError("No API key found. Please set OPENCODE_API_KEY or GEMINI_API_KEY in your .env file.")
 
         # Build system prompt with tool descriptions
         tools_desc = build_tools_description()
@@ -214,49 +250,88 @@ class ExplainableDataAgent:
         print(f"{'-' * 70}")
 
     def _call_llm(self, user_message: str) -> str:
-        """Send a message to OpenCode Zen API and get the response, with dynamic model fallback and rate-limit handling."""
+        """Send a message to the active LLM provider (OpenCode Zen or Gemini) and get the response."""
         self.conversation_history.append({"role": "user", "content": user_message})
 
-        # Rate-limit: wait between calls to avoid 429 errors
+        # Rate-limit: wait between calls to avoid errors
         time.sleep(API_DELAY_SECONDS)
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                payload = {
-                    "model": self.current_model,
-                    "messages": [{"role": "system", "content": self.system_prompt}] + self.conversation_history,
-                    "temperature": 0.2
-                }
-                headers = {
-                    "Authorization": f"Bearer {API_KEY}",
-                    "Content-Type": "application/json"
-                }
-                url = "https://opencode.ai/zen/v1/chat/completions"
-                res = requests.post(url, json=payload, headers=headers, timeout=30)
+                if self.provider == "opencode":
+                    payload = {
+                        "model": self.current_model,
+                        "messages": [{"role": "system", "content": self.system_prompt}] + self.conversation_history,
+                        "temperature": 0.2
+                    }
+                    headers = {
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    url = "https://opencode.ai/zen/v1/chat/completions"
+                    res = requests.post(url, json=payload, headers=headers, timeout=35)
 
-                if res.status_code == 200:
-                    data = res.json()
-                    reply = data["choices"][0]["message"]["content"].strip()
-                    self.conversation_history.append({"role": "assistant", "content": reply})
-                    return reply
+                    if res.status_code == 200:
+                        data = res.json()
+                        reply = data["choices"][0]["message"]["content"].strip()
+                        self.conversation_history.append({"role": "assistant", "content": reply})
+                        return reply
+                    else:
+                        raise Exception(f"status code {res.status_code}: {res.text}")
 
-                # Check if it is a quota/rate limit error
-                error_str = f"status code {res.status_code}: {res.text}"
-                raise Exception(error_str)
+                elif self.provider == "gemini":
+                    # Convert to Gemini parts format
+                    contents = []
+                    for msg in self.conversation_history:
+                        role = "user" if msg["role"] == "user" else "model"
+                        contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+
+                    if self.has_sdk:
+                        response = self.client.models.generate_content(
+                            model=self.current_model,
+                            contents=contents,
+                            config=genai.types.GenerateContentConfig(
+                                system_instruction=self.system_prompt,
+                                temperature=0.2,
+                                max_output_tokens=4096,
+                            ),
+                        )
+                        reply = response.text.strip()
+                        self.conversation_history.append({"role": "assistant", "content": reply})
+                        return reply
+                    else:
+                        # REST API fallback
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.current_model}:generateContent?key={self.api_key}"
+                        payload = {
+                            "contents": contents,
+                            "systemInstruction": {"parts": [{"text": self.system_prompt}]},
+                            "generationConfig": {
+                                "temperature": 0.2,
+                                "maxOutputTokens": 4096
+                            }
+                        }
+                        res = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=35)
+                        if res.status_code == 200:
+                            data = res.json()
+                            reply = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                            self.conversation_history.append({"role": "assistant", "content": reply})
+                            return reply
+                        else:
+                            raise Exception(f"status code {res.status_code}: {res.text}")
 
             except Exception as e:
                 error_str = str(e).lower()
                 is_quota_error = any(kw in error_str for kw in ["429", "resource_exhausted", "quota", "rate"])
 
-                # Dynamic Model Fallback: if we hit a quota limit, try to switch to the next model in the list
+                # Dynamic Model Fallback: switch to next model in the provider's list
                 if is_quota_error:
                     try:
-                        current_idx = PRIORITIZED_MODELS.index(self.current_model)
-                        if current_idx + 1 < len(PRIORITIZED_MODELS):
-                            next_model = PRIORITIZED_MODELS[current_idx + 1]
+                        current_idx = self.prioritized_models.index(self.current_model)
+                        if current_idx + 1 < len(self.prioritized_models):
+                            next_model = self.prioritized_models[current_idx + 1]
                             print(f"  [MODEL ROUTER] Quota exceeded for '{self.current_model}'. Switching to fallback model: '{next_model}'...")
                             self.current_model = next_model
-                            # Retry immediately with the new model
+                            # Retry immediately
                             continue
                     except ValueError:
                         pass
@@ -270,24 +345,37 @@ class ExplainableDataAgent:
                     print(f"  [{error_type}] {str(e)[:80]}... Waiting {wait}s (retry {attempt}/{MAX_RETRIES})")
                     time.sleep(wait)
                 elif is_retryable:
-                    # Last retry — wait longer
+                    # Final retry
                     wait = 30
                     print(f"  [RETRY {attempt}/{MAX_RETRIES}] Final retry. Waiting {wait}s...")
                     time.sleep(wait)
                     try:
-                        payload = {
-                            "model": self.current_model,
-                            "messages": [{"role": "system", "content": self.system_prompt}] + self.conversation_history,
-                            "temperature": 0.2
-                        }
-                        res = requests.post(url, json=payload, headers=headers, timeout=30)
-                        if res.status_code == 200:
-                            data = res.json()
-                            reply = data["choices"][0]["message"]["content"].strip()
-                            self.conversation_history.append({"role": "assistant", "content": reply})
-                            return reply
+                        if self.provider == "opencode":
+                            payload = {
+                                "model": self.current_model,
+                                "messages": [{"role": "system", "content": self.system_prompt}] + self.conversation_history,
+                                "temperature": 0.2
+                            }
+                            res = requests.post("https://opencode.ai/zen/v1/chat/completions", json=payload, headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, timeout=35)
+                            if res.status_code == 200:
+                                reply = res.json()["choices"][0]["message"]["content"].strip()
+                                self.conversation_history.append({"role": "assistant", "content": reply})
+                                return reply
+                        elif self.provider == "gemini":
+                            contents = [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in self.conversation_history]
+                            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.current_model}:generateContent?key={self.api_key}"
+                            payload = {
+                                "contents": contents,
+                                "systemInstruction": {"parts": [{"text": self.system_prompt}]},
+                                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096}
+                            }
+                            res = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=35)
+                            if res.status_code == 200:
+                                reply = res.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                                self.conversation_history.append({"role": "assistant", "content": reply})
+                                return reply
                     except Exception:
-                        pass  # Fall through to fallback
+                        pass
                 else:
                     raise
 
