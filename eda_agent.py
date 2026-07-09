@@ -56,7 +56,13 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
     raise ValueError("GEMINI_API_KEY environment variable not set. Please add it to your .env file.")
 
-MODEL_NAME = "gemini-2.0-flash"
+PRIORITIZED_MODELS = [
+    "gemini-3.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-pro"
+]
 MAX_STEPS = 25
 API_DELAY_SECONDS = 4  # Delay between API calls to stay under free-tier rate limits
 MAX_RETRIES = 3        # Number of retries on rate-limit (429) errors
@@ -197,6 +203,7 @@ class ExplainableDataAgent:
         self.evidence = EvidenceStore()
         self.start_time = datetime.now()
         self.conversation_history = []
+        self.current_model = PRIORITIZED_MODELS[0]
 
         # Build system prompt with tool descriptions
         tools_desc = build_tools_description()
@@ -208,7 +215,7 @@ class ExplainableDataAgent:
         print(f"{'-' * 70}")
 
     def _call_llm(self, user_message: str) -> str:
-        """Send a message to Gemini and get the response, with rate-limit and network error handling."""
+        """Send a message to Gemini and get the response, with dynamic model fallback and rate-limit handling."""
         self.conversation_history.append({"role": "user", "parts": [{"text": user_message}]})
 
         # Rate-limit: wait between calls to avoid 429 errors
@@ -217,7 +224,7 @@ class ExplainableDataAgent:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 response = self.client.models.generate_content(
-                    model=MODEL_NAME,
+                    model=self.current_model,
                     contents=self.conversation_history,
                     config=genai.types.GenerateContentConfig(
                         system_instruction=self.system_prompt,
@@ -230,13 +237,27 @@ class ExplainableDataAgent:
                 return reply
             except Exception as e:
                 error_str = str(e).lower()
-                is_retryable = any(kw in error_str for kw in [
-                    "429", "resource_exhausted", "rate", "quota",
+                is_quota_error = any(kw in error_str for kw in ["429", "resource_exhausted", "quota", "rate"])
+
+                # Dynamic Model Fallback: if we hit a quota limit, try to switch to the next model in the list
+                if is_quota_error:
+                    try:
+                        current_idx = PRIORITIZED_MODELS.index(self.current_model)
+                        if current_idx + 1 < len(PRIORITIZED_MODELS):
+                            next_model = PRIORITIZED_MODELS[current_idx + 1]
+                            print(f"  [MODEL ROUTER] Quota exceeded for '{self.current_model}'. Switching to fallback model: '{next_model}'...")
+                            self.current_model = next_model
+                            # Retry immediately with the new model
+                            continue
+                    except ValueError:
+                        pass
+
+                is_retryable = is_quota_error or any(kw in error_str for kw in [
                     "connect", "getaddrinfo", "timeout", "network",
                 ])
                 if is_retryable and attempt < MAX_RETRIES:
                     wait = 20 * attempt  # 20s, 40s backoff
-                    error_type = "RATE LIMIT" if "429" in error_str or "quota" in error_str else "NETWORK"
+                    error_type = "RATE LIMIT" if is_quota_error else "NETWORK"
                     print(f"  [{error_type}] {str(e)[:80]}... Waiting {wait}s (retry {attempt}/{MAX_RETRIES})")
                     time.sleep(wait)
                 elif is_retryable:
@@ -246,7 +267,7 @@ class ExplainableDataAgent:
                     time.sleep(wait)
                     try:
                         response = self.client.models.generate_content(
-                            model=MODEL_NAME,
+                            model=self.current_model,
                             contents=self.conversation_history,
                             config=genai.types.GenerateContentConfig(
                                 system_instruction=self.system_prompt,
