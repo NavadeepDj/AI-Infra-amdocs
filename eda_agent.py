@@ -42,7 +42,7 @@ try:
 except ImportError:
     pass
 
-from google import genai
+import requests
 from tools import TOOL_REGISTRY
 from evidence_store import EvidenceStore
 
@@ -52,19 +52,19 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 REPORT_PATH = PROJECT_ROOT / "docs" / "agent_investigation_report.md"
 EVIDENCE_JSON_PATH = PROJECT_ROOT / "docs" / "investigation_evidence.json"
 
-API_KEY = os.environ.get("GEMINI_API_KEY")
+API_KEY = os.environ.get("OPENCODE_API_KEY")
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY environment variable not set. Please add it to your .env file.")
+    raise ValueError("OPENCODE_API_KEY environment variable not set. Please add it to your .env file.")
 
 PRIORITIZED_MODELS = [
-    "gemini-3.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-pro"
+    "deepseek-v4-flash-free",
+    "mimo-v2.5-free",
+    "north-mini-code-free",
+    "nemotron-3-ultra-free",
+    "big-pickle"
 ]
 MAX_STEPS = 25
-API_DELAY_SECONDS = 4  # Delay between API calls to stay under free-tier rate limits
+API_DELAY_SECONDS = 1  # OpenCode Zen free tier has high limits, 1s delay is safe
 MAX_RETRIES = 3        # Number of retries on rate-limit (429) errors
 
 # ─── System Prompt ──────────────────────────────────────────────────────────
@@ -199,7 +199,6 @@ def extract_json_from_response(text: str) -> dict | None:
 
 class ExplainableDataAgent:
     def __init__(self):
-        self.client = genai.Client(api_key=API_KEY)
         self.evidence = EvidenceStore()
         self.start_time = datetime.now()
         self.conversation_history = []
@@ -215,26 +214,36 @@ class ExplainableDataAgent:
         print(f"{'-' * 70}")
 
     def _call_llm(self, user_message: str) -> str:
-        """Send a message to Gemini and get the response, with dynamic model fallback and rate-limit handling."""
-        self.conversation_history.append({"role": "user", "parts": [{"text": user_message}]})
+        """Send a message to OpenCode Zen API and get the response, with dynamic model fallback and rate-limit handling."""
+        self.conversation_history.append({"role": "user", "content": user_message})
 
         # Rate-limit: wait between calls to avoid 429 errors
         time.sleep(API_DELAY_SECONDS)
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                response = self.client.models.generate_content(
-                    model=self.current_model,
-                    contents=self.conversation_history,
-                    config=genai.types.GenerateContentConfig(
-                        system_instruction=self.system_prompt,
-                        temperature=0.2,
-                        max_output_tokens=4096,
-                    ),
-                )
-                reply = response.text.strip()
-                self.conversation_history.append({"role": "model", "parts": [{"text": reply}]})
-                return reply
+                payload = {
+                    "model": self.current_model,
+                    "messages": [{"role": "system", "content": self.system_prompt}] + self.conversation_history,
+                    "temperature": 0.2
+                }
+                headers = {
+                    "Authorization": f"Bearer {API_KEY}",
+                    "Content-Type": "application/json"
+                }
+                url = "https://opencode.ai/zen/v1/chat/completions"
+                res = requests.post(url, json=payload, headers=headers, timeout=30)
+
+                if res.status_code == 200:
+                    data = res.json()
+                    reply = data["choices"][0]["message"]["content"].strip()
+                    self.conversation_history.append({"role": "assistant", "content": reply})
+                    return reply
+
+                # Check if it is a quota/rate limit error
+                error_str = f"status code {res.status_code}: {res.text}"
+                raise Exception(error_str)
+
             except Exception as e:
                 error_str = str(e).lower()
                 is_quota_error = any(kw in error_str for kw in ["429", "resource_exhausted", "quota", "rate"])
@@ -256,28 +265,27 @@ class ExplainableDataAgent:
                     "connect", "getaddrinfo", "timeout", "network",
                 ])
                 if is_retryable and attempt < MAX_RETRIES:
-                    wait = 20 * attempt  # 20s, 40s backoff
+                    wait = 15 * attempt  # 15s, 30s backoff
                     error_type = "RATE LIMIT" if is_quota_error else "NETWORK"
                     print(f"  [{error_type}] {str(e)[:80]}... Waiting {wait}s (retry {attempt}/{MAX_RETRIES})")
                     time.sleep(wait)
                 elif is_retryable:
                     # Last retry — wait longer
-                    wait = 60
+                    wait = 30
                     print(f"  [RETRY {attempt}/{MAX_RETRIES}] Final retry. Waiting {wait}s...")
                     time.sleep(wait)
                     try:
-                        response = self.client.models.generate_content(
-                            model=self.current_model,
-                            contents=self.conversation_history,
-                            config=genai.types.GenerateContentConfig(
-                                system_instruction=self.system_prompt,
-                                temperature=0.2,
-                                max_output_tokens=4096,
-                            ),
-                        )
-                        reply = response.text.strip()
-                        self.conversation_history.append({"role": "model", "parts": [{"text": reply}]})
-                        return reply
+                        payload = {
+                            "model": self.current_model,
+                            "messages": [{"role": "system", "content": self.system_prompt}] + self.conversation_history,
+                            "temperature": 0.2
+                        }
+                        res = requests.post(url, json=payload, headers=headers, timeout=30)
+                        if res.status_code == 200:
+                            data = res.json()
+                            reply = data["choices"][0]["message"]["content"].strip()
+                            self.conversation_history.append({"role": "assistant", "content": reply})
+                            return reply
                     except Exception:
                         pass  # Fall through to fallback
                 else:
@@ -285,7 +293,7 @@ class ExplainableDataAgent:
 
         # Final fallback after all retries exhausted
         fallback = '{"action": "conclude", "thought": "API temporarily unavailable after retries.", "hypothesis": "N/A", "verdict": "SKIPPED", "reasoning": "Could not reach LLM. Will continue with next step."}'
-        self.conversation_history.append({"role": "model", "parts": [{"text": fallback}]})
+        self.conversation_history.append({"role": "assistant", "content": fallback})
         return fallback
 
     def run(self):
