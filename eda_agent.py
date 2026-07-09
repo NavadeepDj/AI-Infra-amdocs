@@ -292,7 +292,7 @@ class ExplainableDataAgent:
         """Execute the autonomous investigation loop."""
         print("\n" + "=" * 70)
         print("  EXPLAINABLE DATA UNDERSTANDING AGENT")
-        print(f"  Model: {MODEL_NAME} | Max Steps: {MAX_STEPS}")
+        print(f"  Model: {self.current_model} | Max Steps: {MAX_STEPS}")
         print(f"  Started: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 70)
 
@@ -421,7 +421,7 @@ class ExplainableDataAgent:
         header = (
             "# Explainable Data Understanding Agent — Investigation Report\n\n"
             f"*Generated autonomously on {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
-            f"*Model: `{MODEL_NAME}` | Steps: {len(self.evidence.steps)} | "
+            f"*Model: `{self.current_model}` | Steps: {len(self.evidence.steps)} | "
             f"Max Allowed: {MAX_STEPS}*\n\n"
             "Every conclusion in this report is backed by deterministic tool evidence. "
             "The LLM never computed statistics — it only reasoned over verified tool outputs.\n\n"
