@@ -214,6 +214,17 @@ class ExplainableDataAgent:
         opencode_key = os.environ.get("OPENCODE_API_KEY")
         gemini_key = os.environ.get("GEMINI_API_KEY")
 
+        # Initialize fallback options
+        self.fallback_provider = None
+        self.fallback_key = None
+        self.gemini_models = [
+            "gemini-2.0-flash",
+            "gemini-2.5-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-2.5-pro",
+            "gemini-3.5-flash"
+        ]
+
         if opencode_key:
             self.provider = "opencode"
             self.api_key = opencode_key
@@ -226,16 +237,14 @@ class ExplainableDataAgent:
             ]
             self.current_model = self.prioritized_models[0]
             print(f"[AGENT BRAIN] Initialized OpenCode Zen API gateway. Prioritizing: {self.current_model}")
+            if gemini_key:
+                self.fallback_provider = "gemini"
+                self.fallback_key = gemini_key
+                print(f"[AGENT BRAIN] Gemini fallback configured (will hot-swap if OpenCode times out).")
         elif gemini_key:
             self.provider = "gemini"
             self.api_key = gemini_key
-            self.prioritized_models = [
-                "gemini-2.0-flash",
-                "gemini-2.5-flash",
-                "gemini-3.1-flash-lite",
-                "gemini-2.5-pro",
-                "gemini-3.5-flash"
-            ]
+            self.prioritized_models = self.gemini_models
             self.current_model = self.prioritized_models[0]
             if HAS_GEMINI_SDK:
                 try:
@@ -334,6 +343,31 @@ class ExplainableDataAgent:
             except Exception as e:
                 error_str = str(e).lower()
                 is_quota_error = any(kw in error_str for kw in ["429", "resource_exhausted", "quota", "rate"])
+                is_timeout_or_net = any(kw in error_str for kw in ["timeout", "read timeout", "connect", "getaddrinfo", "connection"])
+
+                # Dynamic Provider Fallback (Hot-Swap to Gemini if OpenCode has issues)
+                if (is_quota_error or is_timeout_or_net) and self.fallback_provider == "gemini":
+                    print(f"\n  [PROVIDER ROUTER] Primary provider '{self.provider}' encountered error: {str(e)[:100]}. Hot-swapping to fallback provider 'gemini'...")
+                    self.provider = "gemini"
+                    self.api_key = self.fallback_key
+                    self.prioritized_models = self.gemini_models
+                    self.current_model = self.prioritized_models[0]
+                    self.fallback_provider = None  # Clear to prevent loops
+
+                    if HAS_GEMINI_SDK:
+                        try:
+                            self.client = genai.Client(api_key=self.api_key)
+                            self.has_sdk = True
+                        except Exception:
+                            self.has_sdk = False
+                    else:
+                        self.has_sdk = False
+
+                    # Pop user message so retry doesn't duplicate it in history
+                    if self.conversation_history and self.conversation_history[-1]["role"] == "user":
+                        self.conversation_history.pop()
+
+                    return self._call_llm(user_message)
 
                 # Dynamic Model Fallback: switch to next model in the provider's list
                 if is_quota_error:
@@ -348,9 +382,7 @@ class ExplainableDataAgent:
                     except ValueError:
                         pass
 
-                is_retryable = is_quota_error or any(kw in error_str for kw in [
-                    "connect", "getaddrinfo", "timeout", "network",
-                ])
+                is_retryable = is_quota_error or is_timeout_or_net
                 if is_retryable and attempt < MAX_RETRIES:
                     wait = 15 * attempt  # 15s, 30s backoff
                     error_type = "RATE LIMIT" if is_quota_error else "NETWORK"
@@ -452,9 +484,14 @@ class ExplainableDataAgent:
                     evidence=evidence,
                 )
 
+                # Truncate evidence for LLM prompt to prevent token bloat and timeouts
+                evidence_for_prompt = evidence_str
+                if len(evidence_str) > 1500:
+                    evidence_for_prompt = evidence_str[:1500] + "\n... [Evidence truncated in LLM history to prevent timeout. Full data is saved in Evidence Store] ..."
+
                 # Feed evidence back to LLM
                 reply = self._call_llm(
-                    f"Tool `{tool_name}` returned this evidence:\n```json\n{evidence_str}\n```\n"
+                    f"Tool `{tool_name}` returned this evidence:\n```json\n{evidence_for_prompt}\n```\n"
                     "Based on this evidence, what do you want to do next? You can call another tool, "
                     "record a conclusion, or finish the investigation."
                 )
