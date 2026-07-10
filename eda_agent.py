@@ -340,17 +340,15 @@ class ExplainableDataAgent:
 
             except Exception as e:
                 error_str = str(e).lower()
-                is_quota_error = any(kw in error_str for kw in ["429", "resource_exhausted", "quota", "rate"])
-                is_timeout_or_net = any(kw in error_str for kw in ["timeout", "read timeout", "connect", "getaddrinfo", "connection"])
 
-                # Dynamic Provider Fallback (Hot-Swap to Gemini if OpenCode has issues)
-                if (is_quota_error or is_timeout_or_net) and self.fallback_provider == "gemini":
-                    print(f"\n  [PROVIDER ROUTER] Primary provider '{self.provider}' encountered error: {str(e)[:100]}. Hot-swapping to fallback provider 'gemini'...")
+                # 1. Hot-Swap to Gemini fallback provider if OpenCode experiences timeouts, connection errors, or quota issues
+                if self.provider == "opencode" and self.fallback_provider == "gemini":
+                    print(f"\n  [PROVIDER ROUTER] OpenCode Zen encountered error: {error_str[:80]}... Hot-swapping to Gemini API...")
                     self.provider = "gemini"
                     self.api_key = self.fallback_key
                     self.prioritized_models = self.gemini_models
                     self.current_model = self.prioritized_models[0]
-                    self.fallback_provider = None  # Clear to prevent loops
+                    self.fallback_provider = None  # Clear fallback to avoid looping
 
                     if HAS_GEMINI_SDK:
                         try:
@@ -367,59 +365,27 @@ class ExplainableDataAgent:
 
                     return self._call_llm(user_message)
 
-                # Dynamic Model Fallback: switch to next model in the provider's list
-                if is_quota_error:
-                    try:
-                        current_idx = self.prioritized_models.index(self.current_model)
-                        if current_idx + 1 < len(self.prioritized_models):
-                            next_model = self.prioritized_models[current_idx + 1]
-                            print(f"  [MODEL ROUTER] Quota exceeded for '{self.current_model}'. Switching to fallback model: '{next_model}'...")
-                            self.current_model = next_model
-                            # Retry immediately
-                            continue
-                    except ValueError:
-                        pass
+                # 2. Dynamic Model Fallback within current provider (e.g., if Gemini 3.5 hits 503 High Demand or 429 Rate Limit)
+                try:
+                    current_idx = self.prioritized_models.index(self.current_model)
+                    if current_idx + 1 < len(self.prioritized_models):
+                        next_model = self.prioritized_models[current_idx + 1]
+                        print(f"  [MODEL ROUTER] Model '{self.current_model}' encountered error ({error_str[:50]}...). Switching to fallback model: '{next_model}'...")
+                        self.current_model = next_model
+                        time.sleep(2)  # Brief pause before switching
+                        continue
+                except ValueError:
+                    pass
 
-                is_retryable = is_quota_error or is_timeout_or_net
-                if is_retryable and attempt < MAX_RETRIES:
+                # 3. If all models in the list are currently exhausted or busy, back off and retry
+                if attempt < MAX_RETRIES:
                     wait = 15 * attempt  # 15s, 30s backoff
-                    error_type = "RATE LIMIT" if is_quota_error else "NETWORK"
-                    print(f"  [{error_type}] {str(e)[:80]}... Waiting {wait}s (retry {attempt}/{MAX_RETRIES})")
+                    print(f"  [API BUSY/ERROR] {error_str[:80]}... Waiting {wait}s (retry {attempt}/{MAX_RETRIES})")
                     time.sleep(wait)
-                elif is_retryable:
-                    # Final retry
-                    wait = 30
-                    print(f"  [RETRY {attempt}/{MAX_RETRIES}] Final retry. Waiting {wait}s...")
-                    time.sleep(wait)
-                    try:
-                        if self.provider == "opencode":
-                            payload = {
-                                "model": self.current_model,
-                                "messages": [{"role": "system", "content": self.system_prompt}] + self.conversation_history,
-                                "temperature": 0.2
-                            }
-                            res = requests.post("https://opencode.ai/zen/v1/chat/completions", json=payload, headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, timeout=35)
-                            if res.status_code == 200:
-                                reply = res.json()["choices"][0]["message"]["content"].strip()
-                                self.conversation_history.append({"role": "assistant", "content": reply})
-                                return reply
-                        elif self.provider == "gemini":
-                            contents = [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in self.conversation_history]
-                            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.current_model}:generateContent?key={self.api_key}"
-                            payload = {
-                                "contents": contents,
-                                "systemInstruction": {"parts": [{"text": self.system_prompt}]},
-                                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096}
-                            }
-                            res = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=35)
-                            if res.status_code == 200:
-                                reply = res.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
-                                self.conversation_history.append({"role": "assistant", "content": reply})
-                                return reply
-                    except Exception:
-                        pass
                 else:
-                    raise
+                    # Final retry attempt before falling back to safe continuation JSON (NO RAISE)
+                    print(f"  [RETRY {attempt}/{MAX_RETRIES}] Final retry on '{self.current_model}' after 30s backoff...")
+                    time.sleep(30)
 
         # Final fallback after all retries exhausted
         fallback = '{"action": "conclude", "thought": "API temporarily unavailable after retries.", "hypothesis": "N/A", "verdict": "SKIPPED", "reasoning": "Could not reach LLM. Will continue with next step."}'
