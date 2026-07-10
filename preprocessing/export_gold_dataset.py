@@ -38,6 +38,13 @@ def publish_gold_dataset():
         "monitoring_slots": int(df["monitoring_slot"].nunique()),
         "eda_version": "Phase1_v1",
         "schema_version": "1.0",
+        "pipeline_assumptions": {
+            "A1": "machine_name <-> ip_address forms an exact 1-to-1 mapping across all tables (0% drift).",
+            "A2": "Monitoring occurs on a regular 4-hour cycle (6 slots/day, 186 total slots per machine).",
+            "A3": "Inter-system clock jitter up to 46 minutes exists; raw timestamps are bucketized into monitoring_slots.",
+            "A4": "Ping Status forms the complete master inventory (246 assets; other files are strict subsets).",
+            "A5": "A physical server is either HPE or Dell, never both; vendor telemetry is preserved separately without coalescing."
+        },
         "telemetry_distribution": df["telemetry_source"].value_counts().to_dict(),
         "column_names": list(df.columns)
     }
