@@ -61,12 +61,19 @@ def publish_gold_dataset():
     csv_size_mb = os.path.getsize(csv_path) / (1024 * 1024)
     
     # Reload Parquet to verify exact shape and fidelity
-    reloaded_df = pd.read_parquet(parquet_path)
-    if reloaded_df.shape != (45756, 28):
-        print(f"[ERROR] Parquet roundtrip verification failed! Expected (45756, 28), got {reloaded_df.shape}")
+    reloaded_pq = pd.read_parquet(parquet_path)
+    if reloaded_pq.shape != (45756, 28):
+        print(f"[ERROR] Parquet roundtrip verification failed! Expected (45756, 28), got {reloaded_pq.shape}")
         sys.exit(1)
-        
-    print(f"[PASS] Parquet Roundtrip Verification: Re-read {reloaded_df.shape} successfully from disk.")
+    print(f"[PASS] Parquet Roundtrip Verification: Re-read {reloaded_pq.shape} successfully from disk.")
+    
+    # Reload CSV to verify exact shape and fidelity
+    reloaded_csv = pd.read_csv(csv_path)
+    if reloaded_csv.shape != (45756, 28):
+        print(f"[ERROR] CSV roundtrip verification failed! Expected (45756, 28), got {reloaded_csv.shape}")
+        sys.exit(1)
+    print(f"[PASS] CSV Roundtrip Verification: Re-read {reloaded_csv.shape} successfully from disk.")
+    
     print(f"[PASS] Storage Footprint:\n  - Parquet: {pq_size_mb:.2f} MB\n  - CSV:     {csv_size_mb:.2f} MB")
     
     # 7. Generate Step 8 Documentation (`07_gold_dataset_publication.md`)
