@@ -1,0 +1,190 @@
+{
+  "target_failure_3slot": {
+    "Logistic Regression": {
+      "PR_AUC": 0.158,
+      "ROC_AUC": 0.6214,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 13.48,
+      "Recall_Default_Pct": 36.07,
+      "F1_Default_Pct": 19.63,
+      "Confusion_Matrix_Default": [
+        [
+          11060,
+          1553
+        ],
+        [
+          429,
+          242
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.811,
+      "Optimal_Precision_Pct": 29.89,
+      "Optimal_Recall_Pct": 19.37,
+      "Optimal_F1_Pct": 23.51,
+      "Runtime_Sec": 0.16
+    },
+    "Random Forest": {
+      "PR_AUC": 0.1471,
+      "ROC_AUC": 0.6088,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 13.12,
+      "Recall_Default_Pct": 33.98,
+      "F1_Default_Pct": 18.93,
+      "Confusion_Matrix_Default": [
+        [
+          11103,
+          1510
+        ],
+        [
+          443,
+          228
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.841,
+      "Optimal_Precision_Pct": 30.28,
+      "Optimal_Recall_Pct": 16.24,
+      "Optimal_F1_Pct": 21.14,
+      "Runtime_Sec": 0.42
+    },
+    "XGBoost": {
+      "PR_AUC": 0.1629,
+      "ROC_AUC": 0.6146,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 13.45,
+      "Recall_Default_Pct": 35.47,
+      "F1_Default_Pct": 19.51,
+      "Confusion_Matrix_Default": [
+        [
+          11082,
+          1531
+        ],
+        [
+          433,
+          238
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.795,
+      "Optimal_Precision_Pct": 30.26,
+      "Optimal_Recall_Pct": 17.59,
+      "Optimal_F1_Pct": 22.24,
+      "Runtime_Sec": 0.29
+    },
+    "XGBoost (No Vendor Flags)": {
+      "PR_AUC": 0.1636,
+      "ROC_AUC": 0.6146,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 10.9,
+      "Recall_Default_Pct": 37.41,
+      "F1_Default_Pct": 16.89,
+      "Confusion_Matrix_Default": [
+        [
+          10562,
+          2051
+        ],
+        [
+          420,
+          251
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.804,
+      "Optimal_Precision_Pct": 30.18,
+      "Optimal_Recall_Pct": 17.59,
+      "Optimal_F1_Pct": 22.22,
+      "Runtime_Sec": 0.25
+    }
+  },
+  "target_failure_6slot": {
+    "Logistic Regression": {
+      "PR_AUC": 0.2034,
+      "ROC_AUC": 0.6075,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 21.35,
+      "Recall_Default_Pct": 32.93,
+      "F1_Default_Pct": 25.9,
+      "Confusion_Matrix_Default": [
+        [
+          10703,
+          1415
+        ],
+        [
+          782,
+          384
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.601,
+      "Optimal_Precision_Pct": 26.66,
+      "Optimal_Recall_Pct": 26.24,
+      "Optimal_F1_Pct": 26.45,
+      "Runtime_Sec": 0.12
+    },
+    "Random Forest": {
+      "PR_AUC": 0.1997,
+      "ROC_AUC": 0.601,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 21.16,
+      "Recall_Default_Pct": 32.16,
+      "F1_Default_Pct": 25.53,
+      "Confusion_Matrix_Default": [
+        [
+          10721,
+          1397
+        ],
+        [
+          791,
+          375
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.617,
+      "Optimal_Precision_Pct": 26.67,
+      "Optimal_Recall_Pct": 25.39,
+      "Optimal_F1_Pct": 26.01,
+      "Runtime_Sec": 0.44
+    },
+    "XGBoost": {
+      "PR_AUC": 0.2119,
+      "ROC_AUC": 0.6075,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 21.34,
+      "Recall_Default_Pct": 33.02,
+      "F1_Default_Pct": 25.93,
+      "Confusion_Matrix_Default": [
+        [
+          10699,
+          1419
+        ],
+        [
+          781,
+          385
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.604,
+      "Optimal_Precision_Pct": 26.86,
+      "Optimal_Recall_Pct": 26.33,
+      "Optimal_F1_Pct": 26.59,
+      "Runtime_Sec": 0.28
+    },
+    "XGBoost (No Vendor Flags)": {
+      "PR_AUC": 0.2135,
+      "ROC_AUC": 0.6075,
+      "Threshold_Default": 0.5,
+      "Precision_Default_Pct": 17.64,
+      "Recall_Default_Pct": 35.33,
+      "F1_Default_Pct": 23.53,
+      "Confusion_Matrix_Default": [
+        [
+          10194,
+          1924
+        ],
+        [
+          754,
+          412
+        ]
+      ],
+      "Optimal_F1_Threshold": 0.546,
+      "Optimal_Precision_Pct": 26.67,
+      "Optimal_Recall_Pct": 26.33,
+      "Optimal_F1_Pct": 26.5,
+      "Runtime_Sec": 0.25
+    }
+  }
+}

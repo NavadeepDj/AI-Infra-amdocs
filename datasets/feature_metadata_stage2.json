@@ -1,0 +1,219 @@
+{
+  "pipeline_phase": "Phase 4 Stage 2: Temporal Infrastructure Features (Option C Separation of Concerns)",
+  "total_columns": 62,
+  "original_columns": 28,
+  "engineered_features": 34,
+  "features": {
+    "ping_status_binary": {
+      "type": "binary",
+      "source": [
+        "ping_status"
+      ],
+      "description": "Numeric encoding of network reachability (0=Reachable, 1=Unreachable).",
+      "ml_usage": "core_feature"
+    },
+    "critical_component_count": {
+      "type": "count",
+      "source": [
+        "hardware_cpu_worst_status",
+        "hardware_memory_worst_status",
+        "hardware_fans_worst_status",
+        "hardware_storage_worst_status",
+        "hardware_temperature_worst_status",
+        "hardware_power_worst_status"
+      ],
+      "description": "Count of hardware components simultaneously reporting Rank 3 (Critical).",
+      "ml_usage": "core_feature"
+    },
+    "not_ok_component_count": {
+      "type": "count",
+      "source": [
+        "hardware_cpu_worst_status",
+        "hardware_memory_worst_status",
+        "hardware_fans_worst_status",
+        "hardware_storage_worst_status",
+        "hardware_temperature_worst_status",
+        "hardware_power_worst_status"
+      ],
+      "description": "Count of hardware components simultaneously reporting Rank 2 (NOT OK / intermediate anomaly).",
+      "ml_usage": "core_feature"
+    },
+    "degraded_component_count": {
+      "type": "count",
+      "source": [
+        "hardware_cpu_worst_status",
+        "hardware_memory_worst_status",
+        "hardware_fans_worst_status",
+        "hardware_storage_worst_status",
+        "hardware_temperature_worst_status",
+        "hardware_power_worst_status"
+      ],
+      "description": "Count of hardware components simultaneously reporting Rank 1 (Degraded).",
+      "ml_usage": "core_feature"
+    },
+    "has_active_problem": {
+      "type": "binary",
+      "source": [
+        "critical_component_count",
+        "not_ok_component_count",
+        "degraded_component_count",
+        "ping_status_binary"
+      ],
+      "description": "Convenience dashboard alert flag (1 if any component > 0 or ping unreachable).",
+      "ml_usage": "convenience_indicator"
+    },
+    "hardware_cpu_worst_status": {
+      "type": "ordinal",
+      "source": [
+        "hpe_cpu",
+        "dell_cpu"
+      ],
+      "description": "Maximum available severity rank across HPE and Dell observations (cpu), ignoring missing values (skipna=True). NaN for Ping-Only servers.",
+      "ml_usage": "core_feature"
+    },
+    "hardware_cpu_disagreement_flag": {
+      "type": "flag",
+      "source": [
+        "hpe_cpu",
+        "dell_cpu"
+      ],
+      "description": "Binary flag (1 if both HPE and Dell report cpu and differ). Excluded from ML training to avoid learning mock-data generation noise.",
+      "ml_usage": "explainability_only"
+    },
+    "hardware_memory_worst_status": {
+      "type": "ordinal",
+      "source": [
+        "hpe_memory",
+        "dell_memory"
+      ],
+      "description": "Maximum available severity rank across HPE and Dell observations (memory), ignoring missing values (skipna=True). NaN for Ping-Only servers.",
+      "ml_usage": "core_feature"
+    },
+    "hardware_memory_disagreement_flag": {
+      "type": "flag",
+      "source": [
+        "hpe_memory",
+        "dell_memory"
+      ],
+      "description": "Binary flag (1 if both HPE and Dell report memory and differ). Excluded from ML training to avoid learning mock-data generation noise.",
+      "ml_usage": "explainability_only"
+    },
+    "hardware_fans_worst_status": {
+      "type": "ordinal",
+      "source": [
+        "hpe_fans",
+        "dell_fans"
+      ],
+      "description": "Maximum available severity rank across HPE and Dell observations (fans), ignoring missing values (skipna=True). NaN for Ping-Only servers.",
+      "ml_usage": "core_feature"
+    },
+    "hardware_fans_disagreement_flag": {
+      "type": "flag",
+      "source": [
+        "hpe_fans",
+        "dell_fans"
+      ],
+      "description": "Binary flag (1 if both HPE and Dell report fans and differ). Excluded from ML training to avoid learning mock-data generation noise.",
+      "ml_usage": "explainability_only"
+    },
+    "hardware_storage_worst_status": {
+      "type": "ordinal",
+      "source": [
+        "hpe_storage",
+        "dell_storage"
+      ],
+      "description": "Maximum available severity rank across HPE and Dell observations (storage), ignoring missing values (skipna=True). NaN for Ping-Only servers.",
+      "ml_usage": "core_feature"
+    },
+    "hardware_storage_disagreement_flag": {
+      "type": "flag",
+      "source": [
+        "hpe_storage",
+        "dell_storage"
+      ],
+      "description": "Binary flag (1 if both HPE and Dell report storage and differ). Excluded from ML training to avoid learning mock-data generation noise.",
+      "ml_usage": "explainability_only"
+    },
+    "hardware_temperature_worst_status": {
+      "type": "ordinal",
+      "source": [
+        "hpe_temperature",
+        "dell_temperature"
+      ],
+      "description": "Maximum available severity rank across HPE and Dell observations (temperature), ignoring missing values (skipna=True). NaN for Ping-Only servers.",
+      "ml_usage": "core_feature"
+    },
+    "hardware_temperature_disagreement_flag": {
+      "type": "flag",
+      "source": [
+        "hpe_temperature",
+        "dell_temperature"
+      ],
+      "description": "Binary flag (1 if both HPE and Dell report temperature and differ). Excluded from ML training to avoid learning mock-data generation noise.",
+      "ml_usage": "explainability_only"
+    },
+    "hardware_power_worst_status": {
+      "type": "ordinal",
+      "source": [
+        "hpe_power",
+        "dell_power"
+      ],
+      "description": "Maximum available severity rank across HPE and Dell observations (power), ignoring missing values (skipna=True). NaN for Ping-Only servers.",
+      "ml_usage": "core_feature"
+    },
+    "hardware_power_disagreement_flag": {
+      "type": "flag",
+      "source": [
+        "hpe_power",
+        "dell_power"
+      ],
+      "description": "Binary flag (1 if both HPE and Dell report power and differ). Excluded from ML training to avoid learning mock-data generation noise.",
+      "ml_usage": "explainability_only"
+    },
+    "ping_status_binary_lag1": {
+      "type": "binary",
+      "source": [
+        "ping_status_binary"
+      ],
+      "description": "Network reachability in immediate preceding slot (-4h). Preserved as truthful NaN at Slot 1 (no prior history).",
+      "ml_usage": "core_feature",
+      "window": "lag1"
+    },
+    "ping_status_binary_lag2": {
+      "type": "binary",
+      "source": [
+        "ping_status_binary"
+      ],
+      "description": "Network reachability two slots ago (-8h). Preserved as truthful NaN at Slot 1 & 2. Identifies flapping with lag1.",
+      "ml_usage": "core_feature",
+      "window": "lag2"
+    },
+    "ping_timeout_rate_3slot": {
+      "type": "continuous",
+      "source": [
+        "ping_status_binary"
+      ],
+      "description": "Rolling mean of network timeouts over last 3 slots (12h). min_periods=1 evaluates available slots without generating NaNs.",
+      "ml_usage": "core_feature",
+      "window": "rolling_3slot_12h"
+    },
+    "ping_timeout_rate_6slot": {
+      "type": "continuous",
+      "source": [
+        "ping_status_binary"
+      ],
+      "description": "Rolling mean of network timeouts over last 6 slots (24h). min_periods=1 evaluates available slots without generating NaNs.",
+      "ml_usage": "core_feature",
+      "window": "rolling_6slot_24h"
+    },
+    "problems_active_sum_6slot": {
+      "type": "count",
+      "source": [
+        "has_active_problem"
+      ],
+      "description": "Rolling sum of active problem slots over last 6 slots (24h). Measures sustained daily instability.",
+      "ml_usage": "core_feature",
+      "window": "rolling_6slot_24h"
+    }
+  }
+}

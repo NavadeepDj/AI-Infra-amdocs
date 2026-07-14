@@ -1,0 +1,56 @@
+{
+  "isolation_forest_features": [
+    "has_hpe",
+    "has_dell",
+    "ping_status_binary",
+    "hardware_cpu_worst_status",
+    "hardware_memory_worst_status",
+    "hardware_fans_worst_status",
+    "hardware_storage_worst_status",
+    "hardware_temperature_worst_status",
+    "hardware_power_worst_status",
+    "critical_component_count",
+    "not_ok_component_count",
+    "degraded_component_count",
+    "has_active_problem",
+    "ping_status_binary_lag1",
+    "ping_status_binary_lag2",
+    "ping_timeout_rate_3slot",
+    "ping_timeout_rate_6slot",
+    "problems_active_sum_6slot"
+  ],
+  "xgboost_failure_features": [
+    "ping_status_binary",
+    "hardware_cpu_worst_status",
+    "hardware_memory_worst_status",
+    "hardware_fans_worst_status",
+    "hardware_storage_worst_status",
+    "hardware_temperature_worst_status",
+    "hardware_power_worst_status",
+    "critical_component_count",
+    "not_ok_component_count",
+    "degraded_component_count",
+    "ping_status_binary_lag1",
+    "ping_status_binary_lag2",
+    "ping_timeout_rate_3slot",
+    "ping_timeout_rate_6slot",
+    "problems_active_sum_6slot"
+  ],
+  "imputation_rules": {
+    "hardware_cols": [
+      "hardware_cpu_worst_status",
+      "hardware_memory_worst_status",
+      "hardware_fans_worst_status",
+      "hardware_storage_worst_status",
+      "hardware_temperature_worst_status",
+      "hardware_power_worst_status"
+    ],
+    "hardware_impute_value": -1,
+    "lag_cols": [
+      "ping_status_binary_lag1",
+      "ping_status_binary_lag2"
+    ],
+    "lag_impute_value": 0
+  },
+  "description": "Exact column ordering and imputation rules required at inference time. Never alter order during Phase 6 AIOps scoring."
+}

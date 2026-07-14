@@ -1,0 +1,431 @@
+[
+  {
+    "id": "TC-001",
+    "category": "single_server_health",
+    "query": "Why is v5G-AMF-01 unhealthy?",
+    "expected_tools": ["get_server_telemetry", "predict_failure_12h", "explain_prediction"],
+    "expected_reasoning": "Agent should retrieve current telemetry, predict failure risk, and if elevated, explain via SHAP.",
+    "golden_answer_keywords": ["failure_probability", "risk_tier", "ping", "hardware"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_server_telemetry and predict_failure_12h. If risk elevated, must call explain_prediction.",
+      "groundedness": "Every probability and status must trace to tool output.",
+      "shap_compliance": "If P(failure) >= threshold, SHAP must be invoked."
+    }
+  },
+  {
+    "id": "TC-002",
+    "category": "anomaly_detection",
+    "query": "Is v5G-AMF-01 anomalous?",
+    "expected_tools": ["detect_anomaly"],
+    "expected_reasoning": "Agent should run Isolation Forest anomaly detection and report the result.",
+    "golden_answer_keywords": ["anomaly_score", "is_anomaly", "NORMAL", "ANOMALOUS"],
+    "pass_criteria": {
+      "tool_selection": "Must call detect_anomaly.",
+      "groundedness": "Anomaly score and classification must come from tool."
+    }
+  },
+  {
+    "id": "TC-003",
+    "category": "fleet_summary",
+    "query": "Summarize today's infrastructure health.",
+    "expected_tools": ["get_fleet_summary"],
+    "expected_reasoning": "Agent should call get_fleet_summary and report total servers, risk tier breakdown, and top-risk servers.",
+    "golden_answer_keywords": ["total_servers", "healthy", "warning", "critical", "anomalies"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_fleet_summary.",
+      "groundedness": "All counts must come from tool output."
+    }
+  },
+  {
+    "id": "TC-004",
+    "category": "fleet_summary",
+    "query": "How many servers are at risk of failing?",
+    "expected_tools": ["get_fleet_summary"],
+    "expected_reasoning": "Agent should retrieve fleet summary and report WARNING + CRITICAL counts.",
+    "golden_answer_keywords": ["warning", "critical", "total_servers"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_fleet_summary.",
+      "groundedness": "Counts must trace to tool output."
+    }
+  },
+  {
+    "id": "TC-005",
+    "category": "risk_ranking",
+    "query": "Which servers are at highest risk of failure?",
+    "expected_tools": ["get_fleet_summary"],
+    "expected_reasoning": "Agent should call fleet summary and return the top 5 highest-risk servers.",
+    "golden_answer_keywords": ["top_5_at_risk", "failure_probability", "risk_tier"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_fleet_summary.",
+      "groundedness": "Server names and probabilities must come from tool."
+    }
+  },
+  {
+    "id": "TC-006",
+    "category": "single_server_health",
+    "query": "Show me the current status of esx-host-03.",
+    "expected_tools": ["get_server_telemetry"],
+    "expected_reasoning": "Agent should retrieve and present the latest telemetry for esx-host-03.",
+    "golden_answer_keywords": ["ping_status", "hardware_subsystems", "server_name"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_server_telemetry.",
+      "groundedness": "All status values must come from tool output."
+    }
+  },
+  {
+    "id": "TC-007",
+    "category": "root_cause",
+    "query": "What is causing the failure prediction for v5G-AMF-01?",
+    "expected_tools": ["predict_failure_12h", "explain_prediction"],
+    "expected_reasoning": "Agent should predict failure risk, then explain via SHAP top drivers.",
+    "golden_answer_keywords": ["shap", "top_drivers", "positive_drivers", "failure_probability"],
+    "pass_criteria": {
+      "tool_selection": "Must call predict_failure_12h and explain_prediction.",
+      "groundedness": "SHAP contributions must come from tool output.",
+      "shap_compliance": "explain_prediction must be invoked."
+    }
+  },
+  {
+    "id": "TC-008",
+    "category": "single_server_health",
+    "query": "What is the 24-hour failure risk for v5G-AUSF-01?",
+    "expected_tools": ["predict_failure_24h"],
+    "expected_reasoning": "Agent should call the 24-hour XGBoost prediction and report risk tier.",
+    "golden_answer_keywords": ["failure_probability_pct", "risk_tier", "24"],
+    "pass_criteria": {
+      "tool_selection": "Must call predict_failure_24h.",
+      "groundedness": "Probability must come from tool output."
+    }
+  },
+  {
+    "id": "TC-009",
+    "category": "history",
+    "query": "What happened to v5G-AMF-01 in the last 24 hours?",
+    "expected_tools": ["get_server_history"],
+    "expected_reasoning": "Agent should retrieve 6-slot history and describe trends.",
+    "golden_answer_keywords": ["timeline", "trends", "ping_timeout", "problems_active"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_server_history.",
+      "groundedness": "Timeline data must come from tool output."
+    }
+  },
+  {
+    "id": "TC-010",
+    "category": "conversational_followup",
+    "query": "Show v5G-AMF-01",
+    "followup_query": "Why is it failing?",
+    "expected_tools_turn1": ["get_server_telemetry"],
+    "expected_tools_turn2": ["predict_failure_12h", "explain_prediction"],
+    "expected_reasoning": "Agent should resolve 'it' to v5G-AMF-01 from conversation context.",
+    "golden_answer_keywords": ["v5G-AMF-01", "failure_probability"],
+    "pass_criteria": {
+      "conversational_memory": "Agent must resolve 'it' to v5G-AMF-01.",
+      "tool_selection": "Turn 2 must call predict and explain tools."
+    }
+  },
+  {
+    "id": "TC-011",
+    "category": "conversational_followup",
+    "query": "Check esx-host-03 health",
+    "followup_query": "What changed in the last 24 hours?",
+    "expected_tools_turn1": ["get_server_telemetry"],
+    "expected_tools_turn2": ["get_server_history"],
+    "expected_reasoning": "Agent should resolve coreference and get history for esx-host-03.",
+    "golden_answer_keywords": ["esx-host-03", "timeline", "trends"],
+    "pass_criteria": {
+      "conversational_memory": "Agent must resolve 'last 24 hours' to get_server_history for esx-host-03."
+    }
+  },
+  {
+    "id": "TC-012",
+    "category": "model_metadata",
+    "query": "What features does the prediction model use?",
+    "expected_tools": ["get_model_metadata"],
+    "expected_reasoning": "Agent should return the model feature list and configuration.",
+    "golden_answer_keywords": ["feature_order", "xgboost_failure_features", "ping_timeout_rate"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_model_metadata.",
+      "groundedness": "Feature list must come from tool output."
+    }
+  },
+  {
+    "id": "TC-013",
+    "category": "model_metadata",
+    "query": "What thresholds are used for risk classification?",
+    "expected_tools": ["get_model_metadata"],
+    "expected_reasoning": "Agent should return the threshold boundaries for each risk tier.",
+    "golden_answer_keywords": ["thresholds", "NORMAL", "WARNING", "CRITICAL", "optimal_f1"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_model_metadata.",
+      "groundedness": "Threshold values must come from tool output."
+    }
+  },
+  {
+    "id": "TC-014",
+    "category": "alerts",
+    "query": "Show me recent alerts across the fleet.",
+    "expected_tools": ["get_recent_alerts"],
+    "expected_reasoning": "Agent should call get_recent_alerts without a server filter.",
+    "golden_answer_keywords": ["total_alerts", "alerts", "alert_reasons"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_recent_alerts.",
+      "groundedness": "Alert data must come from tool output."
+    }
+  },
+  {
+    "id": "TC-015",
+    "category": "alerts",
+    "query": "Has v5G-AMF-01 had any recent alerts?",
+    "expected_tools": ["get_recent_alerts"],
+    "expected_reasoning": "Agent should call get_recent_alerts filtered to v5G-AMF-01.",
+    "golden_answer_keywords": ["v5G-AMF-01", "alerts"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_recent_alerts with server_name.",
+      "groundedness": "Alert data must come from tool output."
+    }
+  },
+  {
+    "id": "TC-016",
+    "category": "edge_case",
+    "query": "Tell me about ServerDoesNotExist.",
+    "expected_tools": ["get_server_telemetry"],
+    "expected_reasoning": "Agent should attempt lookup and return graceful 'not found' error.",
+    "golden_answer_keywords": ["not found", "error", "available"],
+    "pass_criteria": {
+      "tool_selection": "Must attempt a tool call.",
+      "error_handling": "Must report 'not found' gracefully without crashing."
+    }
+  },
+  {
+    "id": "TC-017",
+    "category": "edge_case",
+    "query": "What is the weather like today?",
+    "expected_tools": [],
+    "expected_reasoning": "Agent should recognize this is outside its domain and respond accordingly.",
+    "golden_answer_keywords": ["infrastructure", "monitoring", "not"],
+    "pass_criteria": {
+      "tool_selection": "Should NOT call any tool or should say it cannot help with this.",
+      "groundedness": "Must not fabricate weather data."
+    }
+  },
+  {
+    "id": "TC-018",
+    "category": "single_server_health",
+    "query": "Give me a complete diagnostic for v5G-AMF-Core-26.",
+    "expected_tools": ["get_server_telemetry", "detect_anomaly", "predict_failure_12h", "predict_failure_24h", "explain_prediction"],
+    "expected_reasoning": "Agent should run a full diagnostic: telemetry, anomaly check, both predictions, and SHAP if elevated.",
+    "golden_answer_keywords": ["telemetry", "anomaly", "failure_probability", "risk_tier"],
+    "pass_criteria": {
+      "tool_selection": "Must call telemetry, anomaly, and at least one prediction tool.",
+      "shap_compliance": "If any prediction exceeds threshold, must call explain_prediction."
+    }
+  },
+  {
+    "id": "TC-019",
+    "category": "single_server_health",
+    "query": "Is v5G-AMF-South-18 going to fail?",
+    "expected_tools": ["predict_failure_12h", "predict_failure_24h"],
+    "expected_reasoning": "Agent should run both failure predictions and report risk tiers.",
+    "golden_answer_keywords": ["failure_probability", "risk_tier", "12", "24"],
+    "pass_criteria": {
+      "tool_selection": "Must call at least predict_failure_12h.",
+      "groundedness": "Probabilities must come from tools."
+    }
+  },
+  {
+    "id": "TC-020",
+    "category": "root_cause",
+    "query": "Explain the SHAP attribution for v5G-AMF-West-18.",
+    "expected_tools": ["explain_prediction"],
+    "expected_reasoning": "Agent should directly call explain_prediction and present SHAP drivers.",
+    "golden_answer_keywords": ["top_drivers", "shap_contribution", "feature"],
+    "pass_criteria": {
+      "tool_selection": "Must call explain_prediction.",
+      "groundedness": "SHAP values must come from tool output."
+    }
+  },
+  {
+    "id": "TC-021",
+    "category": "fleet_summary",
+    "query": "Give me a morning briefing on infrastructure health.",
+    "expected_tools": ["get_fleet_summary", "get_recent_alerts"],
+    "expected_reasoning": "Agent should produce a comprehensive summary with fleet stats and recent alerts.",
+    "golden_answer_keywords": ["total_servers", "healthy", "critical", "alerts"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_fleet_summary. get_recent_alerts is optional but recommended.",
+      "groundedness": "All numbers must come from tools."
+    }
+  },
+  {
+    "id": "TC-022",
+    "category": "history",
+    "query": "Show me the ping history for v5G-AMF-Zone2-29.",
+    "expected_tools": ["get_server_history"],
+    "expected_reasoning": "Agent should retrieve history and focus on ping-related metrics.",
+    "golden_answer_keywords": ["timeline", "ping_status", "ping_timeout_rate"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_server_history.",
+      "groundedness": "Ping data must come from tool output."
+    }
+  },
+  {
+    "id": "TC-023",
+    "category": "anomaly_detection",
+    "query": "Which servers are behaving abnormally right now?",
+    "expected_tools": ["get_fleet_summary"],
+    "expected_reasoning": "Agent should use fleet summary to report anomaly count and affected servers.",
+    "golden_answer_keywords": ["anomalies_detected", "top_5_at_risk"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_fleet_summary or equivalent.",
+      "groundedness": "Anomaly counts must come from tool output."
+    }
+  },
+  {
+    "id": "TC-024",
+    "category": "single_server_health",
+    "query": "Check the hardware health of esx-host-03.",
+    "expected_tools": ["get_server_telemetry"],
+    "expected_reasoning": "Agent should retrieve telemetry and focus on the hardware subsystem breakdown.",
+    "golden_answer_keywords": ["hardware_subsystems", "CPU", "Memory", "Fans", "Storage"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_server_telemetry.",
+      "groundedness": "Hardware statuses must come from tool output."
+    }
+  },
+  {
+    "id": "TC-025",
+    "category": "edge_case",
+    "query": "Predict failure for all 246 servers.",
+    "expected_tools": ["get_fleet_summary"],
+    "expected_reasoning": "Agent should use get_fleet_summary rather than calling predict_failure 246 times.",
+    "golden_answer_keywords": ["total_servers", "warning", "critical"],
+    "pass_criteria": {
+      "tool_selection": "Should use get_fleet_summary for efficiency.",
+      "groundedness": "Numbers must come from tool output."
+    }
+  },
+  {
+    "id": "TC-026",
+    "category": "conversational_followup",
+    "query": "Show me v5G-AUSF-01",
+    "followup_query": "Is it anomalous?",
+    "followup_query_2": "What about the 24-hour risk?",
+    "expected_tools_turn1": ["get_server_telemetry"],
+    "expected_tools_turn2": ["detect_anomaly"],
+    "expected_tools_turn3": ["predict_failure_24h"],
+    "expected_reasoning": "Agent should resolve 'it' across multiple turns.",
+    "golden_answer_keywords": ["v5G-AUSF-01"],
+    "pass_criteria": {
+      "conversational_memory": "Must resolve coreference across 3 turns."
+    }
+  },
+  {
+    "id": "TC-027",
+    "category": "model_metadata",
+    "query": "How was the failure prediction model trained?",
+    "expected_tools": ["get_model_metadata"],
+    "expected_reasoning": "Agent should return model config details from metadata.",
+    "golden_answer_keywords": ["features", "thresholds", "xgboost"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_model_metadata.",
+      "groundedness": "Model details must come from tool output."
+    }
+  },
+  {
+    "id": "TC-028",
+    "category": "root_cause",
+    "query": "Why did the failure probability increase for v5G-AMF-01?",
+    "expected_tools": ["get_server_history", "predict_failure_12h", "explain_prediction"],
+    "expected_reasoning": "Agent should check history for trends, predict current risk, and explain via SHAP.",
+    "golden_answer_keywords": ["trends", "failure_probability", "top_drivers", "INCREASING"],
+    "pass_criteria": {
+      "tool_selection": "Must call history and prediction tools.",
+      "groundedness": "Trend and SHAP data must come from tools."
+    }
+  },
+  {
+    "id": "TC-029",
+    "category": "single_server_health",
+    "query": "What's wrong with v5G-AMF-Backup-02?",
+    "expected_tools": ["get_server_telemetry", "predict_failure_12h"],
+    "expected_reasoning": "Agent should check telemetry and failure risk to identify issues.",
+    "golden_answer_keywords": ["server_name", "ping_status", "hardware_subsystems", "risk_tier"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_server_telemetry and predict_failure_12h.",
+      "groundedness": "All facts must come from tool outputs."
+    }
+  },
+  {
+    "id": "TC-030",
+    "category": "fleet_summary",
+    "query": "Which servers need maintenance right now?",
+    "expected_tools": ["get_fleet_summary", "get_recent_alerts"],
+    "expected_reasoning": "Agent should identify WARNING and CRITICAL servers as maintenance candidates.",
+    "golden_answer_keywords": ["warning", "critical", "top_5_at_risk", "action"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_fleet_summary.",
+      "groundedness": "Server lists and counts must come from tools."
+    }
+  },
+  {
+    "id": "TC-031",
+    "category": "anomaly_detection",
+    "query": "Run anomaly detection on v5G-AMF-Central-28.",
+    "expected_tools": ["detect_anomaly"],
+    "expected_reasoning": "Agent should run Isolation Forest and report result.",
+    "golden_answer_keywords": ["anomaly_score", "is_anomaly", "tier"],
+    "pass_criteria": {
+      "tool_selection": "Must call detect_anomaly.",
+      "groundedness": "Score must come from tool output."
+    }
+  },
+  {
+    "id": "TC-032",
+    "category": "single_server_health",
+    "query": "Compare the 12h and 24h failure risk for v5G-AMF-01.",
+    "expected_tools": ["predict_failure_12h", "predict_failure_24h"],
+    "expected_reasoning": "Agent should call both predictions and compare.",
+    "golden_answer_keywords": ["12h", "24h", "failure_probability", "risk_tier"],
+    "pass_criteria": {
+      "tool_selection": "Must call both predict_failure_12h and predict_failure_24h.",
+      "groundedness": "Both probabilities must come from tool outputs."
+    }
+  },
+  {
+    "id": "TC-033",
+    "category": "edge_case",
+    "query": "What is the CEO's name?",
+    "expected_tools": [],
+    "expected_reasoning": "Agent should decline as this is outside its domain.",
+    "golden_answer_keywords": ["infrastructure", "cannot", "don't have"],
+    "pass_criteria": {
+      "groundedness": "Must not fabricate information.",
+      "tool_selection": "Should not call any tools."
+    }
+  },
+  {
+    "id": "TC-034",
+    "category": "alerts",
+    "query": "Are there any critical alerts right now?",
+    "expected_tools": ["get_recent_alerts"],
+    "expected_reasoning": "Agent should check fleet-wide alerts and filter for critical ones.",
+    "golden_answer_keywords": ["alerts", "critical", "alert_reasons"],
+    "pass_criteria": {
+      "tool_selection": "Must call get_recent_alerts.",
+      "groundedness": "Alert data must come from tool output."
+    }
+  },
+  {
+    "id": "TC-035",
+    "category": "root_cause",
+    "query": "What is the root cause of v5G-AMF-01's health issues?",
+    "expected_tools": ["get_server_telemetry", "get_server_history", "predict_failure_12h", "explain_prediction"],
+    "expected_reasoning": "Agent should perform complete RCA: telemetry, history, prediction, SHAP.",
+    "golden_answer_keywords": ["root_cause", "top_drivers", "EVIDENCE", "RECOMMENDATION"],
+    "pass_criteria": {
+      "tool_selection": "Must call multiple tools for comprehensive RCA.",
+      "groundedness": "Root cause must be backed by SHAP evidence.",
+      "shap_compliance": "explain_prediction must be invoked."
+    }
+  }
+]

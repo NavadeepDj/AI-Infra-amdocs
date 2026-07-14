@@ -1,0 +1,52 @@
+{
+  "dataset_metadata": {
+    "total_rows": 45756,
+    "total_servers": 246,
+    "ping_monitored_servers": 246,
+    "hardware_monitored_servers": 26
+  },
+  "part_a_feature_profile": {
+    "rolling_24h_prob_sum_ge_1_rows": 3659,
+    "rolling_12h_timeout_rate_ge_33pct_rows": 1863,
+    "hardware_degraded_rows": 89,
+    "hardware_not_ok_rows": 5,
+    "hardware_critical_rows": 25
+  },
+  "part_b_post_hoc_evaluation_baseline": {
+    "physical_hardware_critical_faults": {
+      "rows": 25,
+      "servers": 11
+    },
+    "instantaneous_network_dropouts": {
+      "rows": 763,
+      "servers": 135
+    },
+    "chronic_24h_network_outages": {
+      "rows": 14,
+      "servers": 5
+    },
+    "heavy_hardware_problem_accumulation": {
+      "rows": 330,
+      "servers": 37
+    },
+    "benchmark_1_current_operational_incidents": {
+      "rows": 788,
+      "servers": 139,
+      "pct": 1.7221785121077016
+    },
+    "benchmark_2_lookahead_pre_failure_12h": {
+      "rows": 1923,
+      "servers": 139,
+      "pct": 4.20272751114608
+    }
+  },
+  "hyperparameter_testing_plan": {
+    "isolation_forest_contamination_grid": [
+      0.01,
+      0.02,
+      0.03,
+      0.05
+    ],
+    "selection_criteria": "Post-hoc evaluation against Benchmark 1 (Coverage of 25 hardware faults and network dropouts vs false alarm rate)"
+  }
+}

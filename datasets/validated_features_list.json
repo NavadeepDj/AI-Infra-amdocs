@@ -1,0 +1,102 @@
+{
+  "validation_phase": "Phase 4.5 Feature Validation & Leakage Audit",
+  "feature_count": 18,
+  "pruned_constant_features": [
+    "has_ping"
+  ],
+  "leakage_audit_status": "PASSED (Zero helper_ or target_ columns, zero synthetic disagreement flags)",
+  "validated_features": [
+    "has_hpe",
+    "has_dell",
+    "ping_status_binary",
+    "hardware_cpu_worst_status",
+    "hardware_memory_worst_status",
+    "hardware_fans_worst_status",
+    "hardware_storage_worst_status",
+    "hardware_temperature_worst_status",
+    "hardware_power_worst_status",
+    "critical_component_count",
+    "not_ok_component_count",
+    "degraded_component_count",
+    "has_active_problem",
+    "ping_status_binary_lag1",
+    "ping_status_binary_lag2",
+    "ping_timeout_rate_3slot",
+    "ping_timeout_rate_6slot",
+    "problems_active_sum_6slot"
+  ],
+  "mutual_info_ranking_3slot": [
+    {
+      "Feature": "problems_active_sum_6slot",
+      "MI_Score_3slot": 0.010980089074860496
+    },
+    {
+      "Feature": "ping_timeout_rate_6slot",
+      "MI_Score_3slot": 0.009740101170664595
+    },
+    {
+      "Feature": "ping_timeout_rate_3slot",
+      "MI_Score_3slot": 0.009367002205292074
+    },
+    {
+      "Feature": "has_active_problem",
+      "MI_Score_3slot": 0.007339139649781546
+    },
+    {
+      "Feature": "ping_status_binary",
+      "MI_Score_3slot": 0.007090532084571336
+    },
+    {
+      "Feature": "ping_status_binary_lag1",
+      "MI_Score_3slot": 0.003524678514824034
+    },
+    {
+      "Feature": "ping_status_binary_lag2",
+      "MI_Score_3slot": 0.0025731063620309975
+    },
+    {
+      "Feature": "hardware_fans_worst_status",
+      "MI_Score_3slot": 0.0003935881341655875
+    },
+    {
+      "Feature": "critical_component_count",
+      "MI_Score_3slot": 0.00035716828680429596
+    },
+    {
+      "Feature": "hardware_power_worst_status",
+      "MI_Score_3slot": 0.00025582993169010886
+    },
+    {
+      "Feature": "hardware_temperature_worst_status",
+      "MI_Score_3slot": 0.0002537335803797486
+    },
+    {
+      "Feature": "not_ok_component_count",
+      "MI_Score_3slot": 0.00022415388564120883
+    },
+    {
+      "Feature": "has_hpe",
+      "MI_Score_3slot": 0.00012927618161233737
+    },
+    {
+      "Feature": "hardware_storage_worst_status",
+      "MI_Score_3slot": 8.702769811646543e-05
+    },
+    {
+      "Feature": "hardware_memory_worst_status",
+      "MI_Score_3slot": 7.507739941188762e-05
+    },
+    {
+      "Feature": "degraded_component_count",
+      "MI_Score_3slot": 7.499771869631471e-05
+    },
+    {
+      "Feature": "hardware_cpu_worst_status",
+      "MI_Score_3slot": 5.6106959679528765e-05
+    },
+    {
+      "Feature": "has_dell",
+      "MI_Score_3slot": 3.7431533859905164e-05
+    }
+  ]
+}

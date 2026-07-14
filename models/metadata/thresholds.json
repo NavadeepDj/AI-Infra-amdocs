@@ -1,0 +1,51 @@
+{
+  "isolation_forest": {
+    "contamination": 0.02,
+    "anomaly_score_cutoff": 0.0,
+    "description": "If iforest.predict() == -1 or decision_function < 0.0, flag observation as an infrastructure anomaly."
+  },
+  "target_failure_3slot": {
+    "lookahead_window": "12 Hours (3 monitoring slots)",
+    "default_threshold": 0.5,
+    "optimal_f1_threshold": 0.775,
+    "risk_tiers": {
+      "NORMAL": {
+        "min_prob": 0.0,
+        "max_prob": 0.55,
+        "action": "Server stable; no action required."
+      },
+      "WARNING": {
+        "min_prob": 0.55,
+        "max_prob": 0.775,
+        "action": "Subtle degradation detected above baseline; schedule preventative diagnostic checks within 24 hours."
+      },
+      "CRITICAL": {
+        "min_prob": 0.775,
+        "max_prob": 1.0,
+        "action": "Imminent crash risk (<12h, exceeds optimal F1 cutoff). Dispatch high-priority SRE remediation ticket immediately."
+      }
+    }
+  },
+  "target_failure_6slot": {
+    "lookahead_window": "24 Hours (6 monitoring slots)",
+    "default_threshold": 0.5,
+    "optimal_f1_threshold": 0.564,
+    "risk_tiers": {
+      "NORMAL": {
+        "min_prob": 0.0,
+        "max_prob": 0.52,
+        "action": "Server stable; no action required."
+      },
+      "WARNING": {
+        "min_prob": 0.52,
+        "max_prob": 0.564,
+        "action": "Long-range deterioration trend detected. Plan proactive workload migration within 24 hours."
+      },
+      "CRITICAL": {
+        "min_prob": 0.564,
+        "max_prob": 1.0,
+        "action": "High probability of complete hardware/network failure within 24 hours (exceeds optimal F1 cutoff)."
+      }
+    }
+  }
+}

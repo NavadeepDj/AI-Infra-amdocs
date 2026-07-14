@@ -51,22 +51,28 @@ When component disagreements occur (`77` observations):
 #### Why We Do Not Delete Dell or HPE:
 1. **Complementary Coverage Outside the Shared Segment:** Dell monitors `11 additional physical servers` (`2,046` observations) that do not exist in HPE iLO. Dropping Dell would leave 11 critical physical servers without hardware telemetry (`Ping Only`).
 2. **Mutual Sensitivity on Shared Servers:** Dropping either vendor would discard critical early warnings (`Warning/Degraded` events) captured exclusively by the other sensor.
-3. **Sensor Disagreement is a High-Value Predictive Signal:** In enterprise ML monitoring, when two monitoring agents on the same server report conflicting health states (`hpe_cpu = Warning` vs `dell_cpu = OK`), that divergence (`disagreement_flag = 1`) is itself a powerful feature indicating telemetry latency, sensor calibration drift, or early intermittent hardware failure.
+3. **Sensor Disagreement Context:** In real-world deployments, vendor disagreements could indicate telemetry latency, calibration differences, or emerging hardware issues. In this mock dataset, disagreements (`hardware_*_disagreement_flag`) are retained for explainability and vendor consistency audits but are not assumed to represent real infrastructure behavior.
 
 ---
 
 ## 4. Architectural Blueprint for Phase 4 (Feature Engineering)
-By keeping both vendor sources, Phase 4 Feature Engineering will construct three canonical unified feature layers for every physical component (`$COMP \in [cpu, memory, storage, fans, temperature, power]$`):
+By keeping both vendor sources, Phase 4 Feature Engineering will construct two distinct layers for every physical component (`$COMP \in [cpu, memory, storage, fans, temperature, power]$`):
 
-1. **`hardware_power_worst_status` (Safety-First Target):**
+1. **`hardware_{comp}_worst_status` (Canonical ML Training Feature):**
    ```python
    # Take the maximum severity rank between HPE and Dell across any observation
-   df[f"hardware_power_worst_status"] = df[[f"hpe_power", f"dell_power"]].apply(max_severity, axis=1)
+   df[f"hardware_{comp}_worst_status"] = df[[f"hpe_{comp}", f"dell_{comp}"]].apply(max_severity, axis=1)
    ```
-2. **`hardware_power_disagreement_flag` (Anomalous Drift Signal):**
+2. **`hardware_{comp}_disagreement_flag` (Explainability & Diagnostics Only — NOT for ML):**
    ```python
    # Binary flag = 1 when both exist and do not match
-   df[f"hardware_power_disagreement_flag"] = (df["has_hpe"] & df["has_dell"] & (df[f"hpe_power"] != df[f"dell_power"])).astype(int)
+   df[f"hardware_{comp}_disagreement_flag"] = (df["has_hpe"] & df["has_dell"] & (df[f"hpe_{comp}"] != df[f"dell_{comp}"])).astype(int)
    ```
-3. **`hardware_overall_health_score` (Composite Index):**
-   A weighted numeric health score combining Ping reachability, worst-status hardware components, and active problem flags.
+
+---
+
+## 5. Design Limitation & ML Exclusion Policy
+> [!IMPORTANT]
+> **Design Limitation:** The vendor disagreement features (`hardware_*_disagreement_flag`) are intentionally **excluded** from the ML training feature set.
+> 
+> **Rationale:** Based on the available evidence from this mock dataset, disagreement features are excluded from the initial ML feature set because their semantic meaning cannot be validated (i.e., we cannot prove whether they reflect real hardware divergence or synthetic generation randomness). They are retained for explainability and can be re-evaluated if authoritative production metadata or ground-truth labels become available. This ensures our ML models learn from grounded, verifiable component severities (`hardware_{comp}_worst_status`, `critical_component_count`, etc.) rather than synthetic noise.

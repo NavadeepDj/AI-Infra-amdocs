@@ -1,0 +1,54 @@
+[
+  {
+    "Algorithm": "Isolation Forest",
+    "Runtime_Sec": 0.5,
+    "Alert_Volume": 846,
+    "TP_Agreed_Incidents": 365,
+    "Non_Incident_Alerts": 481,
+    "Incident_Agreement_Pct": 43.1,
+    "Incident_Recall_Pct": 46.3,
+    "Unmatched_Alert_Rate_Pct": 1.07,
+    "Hardware_Recall_Pct": 88.0,
+    "Network_Dropout_Recall_Pct": 45.0,
+    "Chronic_24h_Recall_Pct": 100.0
+  },
+  {
+    "Algorithm": "One-Class SVM",
+    "Runtime_Sec": 6.57,
+    "Alert_Volume": 4535,
+    "TP_Agreed_Incidents": 730,
+    "Non_Incident_Alerts": 3805,
+    "Incident_Agreement_Pct": 16.1,
+    "Incident_Recall_Pct": 92.6,
+    "Unmatched_Alert_Rate_Pct": 8.46,
+    "Hardware_Recall_Pct": 100.0,
+    "Network_Dropout_Recall_Pct": 92.4,
+    "Chronic_24h_Recall_Pct": 100.0
+  },
+  {
+    "Algorithm": "DBSCAN",
+    "Runtime_Sec": 1182.29,
+    "Alert_Volume": 109,
+    "TP_Agreed_Incidents": 49,
+    "Non_Incident_Alerts": 60,
+    "Incident_Agreement_Pct": 45.0,
+    "Incident_Recall_Pct": 6.2,
+    "Unmatched_Alert_Rate_Pct": 0.13,
+    "Hardware_Recall_Pct": 100.0,
+    "Network_Dropout_Recall_Pct": 3.1,
+    "Chronic_24h_Recall_Pct": 7.1
+  },
+  {
+    "Algorithm": "PyTorch AutoEncoder",
+    "Runtime_Sec": 23.11,
+    "Alert_Volume": 983,
+    "TP_Agreed_Incidents": 313,
+    "Non_Incident_Alerts": 670,
+    "Incident_Agreement_Pct": 31.8,
+    "Incident_Recall_Pct": 39.7,
+    "Unmatched_Alert_Rate_Pct": 1.49,
+    "Hardware_Recall_Pct": 100.0,
+    "Network_Dropout_Recall_Pct": 37.7,
+    "Chronic_24h_Recall_Pct": 100.0
+  }
+]

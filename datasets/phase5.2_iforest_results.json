@@ -1,0 +1,200 @@
+{
+  "model_name": "Isolation Forest (Unsupervised Baseline for Q3)",
+  "preprocessing_pipeline": "SimpleImputer(fill_value=-1 for hw, 0 for lags) [Tree-Invariant: No Scaling]",
+  "contamination_grid_results": [
+    {
+      "contamination": 0.01,
+      "anomalies_flagged": 450,
+      "pct_of_dataset": 0.9834775767112509,
+      "tp_helper_incidents": 294,
+      "fp_false_alarms": 156,
+      "precision_helper": 65.33333333333333,
+      "recall_helper": 37.309644670050766,
+      "fpr_helper": 0.34691336061199074,
+      "recall_hw_critical": 28.000000000000004,
+      "recall_net_dropout": 37.61467889908257,
+      "recall_chronic_24h": 100.0,
+      "recall_prob_accum_ge3": 62.42424242424243,
+      "recall_target_failure_3slot": 7.124284971398856
+    },
+    {
+      "contamination": 0.02,
+      "anomalies_flagged": 846,
+      "pct_of_dataset": 1.8489378442171518,
+      "tp_helper_incidents": 365,
+      "fp_false_alarms": 481,
+      "precision_helper": 43.14420803782506,
+      "recall_helper": 46.31979695431472,
+      "fpr_helper": 1.069649528553638,
+      "recall_hw_critical": 88.0,
+      "recall_net_dropout": 44.95412844036697,
+      "recall_chronic_24h": 100.0,
+      "recall_prob_accum_ge3": 80.9090909090909,
+      "recall_target_failure_3slot": 10.764430577223088
+    },
+    {
+      "contamination": 0.03,
+      "anomalies_flagged": 1058,
+      "pct_of_dataset": 2.3122650581344524,
+      "tp_helper_incidents": 373,
+      "fp_false_alarms": 685,
+      "precision_helper": 35.25519848771266,
+      "recall_helper": 47.33502538071066,
+      "fpr_helper": 1.5233054616616262,
+      "recall_hw_critical": 100.0,
+      "recall_net_dropout": 45.60943643512451,
+      "recall_chronic_24h": 100.0,
+      "recall_prob_accum_ge3": 87.27272727272727,
+      "recall_target_failure_3slot": 12.584503380135207
+    },
+    {
+      "contamination": 0.05,
+      "anomalies_flagged": 1996,
+      "pct_of_dataset": 4.362269429145904,
+      "tp_helper_incidents": 788,
+      "fp_false_alarms": 1208,
+      "precision_helper": 39.478957915831664,
+      "recall_helper": 100.0,
+      "fpr_helper": 2.6863547411492616,
+      "recall_hw_critical": 100.0,
+      "recall_net_dropout": 100.0,
+      "recall_chronic_24h": 100.0,
+      "recall_prob_accum_ge3": 100.0,
+      "recall_target_failure_3slot": 20.072802912116487
+    }
+  ],
+  "selected_operating_point": {
+    "contamination": 0.02,
+    "anomalies_flagged": 846,
+    "precision_recall_fp_metrics": {
+      "contamination": 0.02,
+      "anomalies_flagged": 846,
+      "pct_of_dataset": 1.8489378442171518,
+      "tp_helper_incidents": 365,
+      "fp_false_alarms": 481,
+      "precision_helper": 43.14420803782506,
+      "recall_helper": 46.31979695431472,
+      "fpr_helper": 1.069649528553638,
+      "recall_hw_critical": 88.0,
+      "recall_net_dropout": 44.95412844036697,
+      "recall_chronic_24h": 100.0,
+      "recall_prob_accum_ge3": 80.9090909090909,
+      "recall_target_failure_3slot": 10.764430577223088
+    }
+  },
+  "all_anomalies_feature_drivers": [
+    {
+      "Feature": "problems_active_sum_6slot",
+      "All_Anomalies_Mean": 2.2222222222222223,
+      "Normal_Observations_Mean": 0.07214428857715431,
+      "Multiplicative_Lift": 30.80246913580247
+    },
+    {
+      "Feature": "has_active_problem",
+      "All_Anomalies_Mean": 0.5283687943262412,
+      "Normal_Observations_Mean": 0.009418837675350702,
+      "Multiplicative_Lift": 56.09702731250943
+    },
+    {
+      "Feature": "ping_status_binary_lag1",
+      "All_Anomalies_Mean": 0.48104265402843605,
+      "Normal_Observations_Mean": 0.007925491425245153,
+      "Multiplicative_Lift": 60.69562481591561
+    },
+    {
+      "Feature": "has_dell",
+      "All_Anomalies_Mean": 0.4373522458628842,
+      "Normal_Observations_Mean": 0.09944333110665776,
+      "Multiplicative_Lift": 4.3980047831845335
+    },
+    {
+      "Feature": "ping_timeout_rate_3slot",
+      "All_Anomalies_Mean": 0.4186367218282112,
+      "Normal_Observations_Mean": 0.009029169450011133,
+      "Multiplicative_Lift": 46.364920289284754
+    },
+    {
+      "Feature": "ping_status_binary",
+      "All_Anomalies_Mean": 0.40543735224586286,
+      "Normal_Observations_Mean": 0.009352037408149633,
+      "Multiplicative_Lift": 43.35283687943262
+    },
+    {
+      "Feature": "ping_status_binary_lag2",
+      "All_Anomalies_Mean": 0.3693586698337292,
+      "Normal_Observations_Mean": 0.009950024762505064,
+      "Multiplicative_Lift": 37.12138197138896
+    },
+    {
+      "Feature": "has_hpe",
+      "All_Anomalies_Mean": 0.34278959810874704,
+      "Normal_Observations_Mean": 0.05566688933422401,
+      "Multiplicative_Lift": 6.1578723404255316
+    },
+    {
+      "Feature": "ping_timeout_rate_6slot",
+      "All_Anomalies_Mean": 0.3243498817966903,
+      "Normal_Observations_Mean": 0.010688413864766568,
+      "Multiplicative_Lift": 30.345932137403626
+    },
+    {
+      "Feature": "hardware_temperature_worst_status",
+      "All_Anomalies_Mean": 0.12162162162162163,
+      "Normal_Observations_Mean": 0.0,
+      "Multiplicative_Lift": NaN
+    },
+    {
+      "Feature": "hardware_fans_worst_status",
+      "All_Anomalies_Mean": 0.11891891891891893,
+      "Normal_Observations_Mean": 0.0013434841021047917,
+      "Multiplicative_Lift": 88.51531531531532
+    },
+    {
+      "Feature": "degraded_component_count",
+      "All_Anomalies_Mean": 0.10874704491725769,
+      "Normal_Observations_Mean": 0.0,
+      "Multiplicative_Lift": NaN
+    },
+    {
+      "Feature": "hardware_storage_worst_status",
+      "All_Anomalies_Mean": 0.0972972972972973,
+      "Normal_Observations_Mean": 0.0006717420510523958,
+      "Multiplicative_Lift": 144.84324324324325
+    },
+    {
+      "Feature": "hardware_power_worst_status",
+      "All_Anomalies_Mean": 0.07567567567567568,
+      "Normal_Observations_Mean": 0.0,
+      "Multiplicative_Lift": NaN
+    },
+    {
+      "Feature": "hardware_cpu_worst_status",
+      "All_Anomalies_Mean": 0.05675675675675676,
+      "Normal_Observations_Mean": 0.0,
+      "Multiplicative_Lift": NaN
+    }
+  ],
+  "real_anomaly_case_studies": [
+    {
+      "case_type": "1. Physical Hardware Fault (`Sensor Breached`)",
+      "server_id": "Unknown",
+      "time_slot": "Unknown",
+      "iforest_score": 0.010846600232031656,
+      "key_features": "Critical Components=1, Temp Status=0, Active Problem Sum=1"
+    },
+    {
+      "case_type": "2. Chronic 24-Hour Network Blackout (`Ping-Only Server`)",
+      "server_id": "Unknown",
+      "time_slot": "Unknown",
+      "iforest_score": 0.09549188396338859,
+      "key_features": "24h Timeout Rate=100%, Lag1=1, Lag2=1"
+    },
+    {
+      "case_type": "3. Novel Operational Warning (`Helper=0 False Alarm Case`)",
+      "server_id": "Unknown",
+      "time_slot": "Unknown",
+      "iforest_score": 0.08688337432053572,
+      "key_features": "Active Problem Sum (24h)=4, Degraded Count=0, Current Ping=0"
+    }
+  ]
+}
