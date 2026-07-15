@@ -192,8 +192,8 @@ def get_server_history(server_name: str, n_slots: str = "6") -> dict:
 def detect_anomaly(server_name: str) -> dict:
     """
     Run the Isolation Forest anomaly detector on a specific server.
-    Returns the anomaly score, classification (NORMAL/ANOMALOUS), and
-    contamination cutoff used.
+    Returns the anomaly score, threshold, percentile, rank, score delta,
+    classification (NORMAL/ANOMALOUS), and a human-readable reason.
     """
     raw = _manager.score_iforest(server_name)
     if "error" in raw:
@@ -201,24 +201,89 @@ def detect_anomaly(server_name: str) -> dict:
 
     classified = classify_anomaly(
         anomaly_score=raw["anomaly_score"],
-        prediction=raw["isolation_forest_prediction"]
+        prediction=raw["isolation_forest_prediction"],
+        threshold=raw.get("threshold", 0.0),
+        percentile=raw.get("percentile", 0.0),
+        fleet_rank=raw.get("fleet_rank", 0),
+        total_servers=raw.get("total_fleet_servers", 0),
+        score_delta=raw.get("score_delta", 0.0),
     )
 
     res = {
         "server_name": server_name,
         "anomaly_score": raw["anomaly_score"],
+        "threshold": classified["threshold"],
+        "score_delta": classified["score_delta"],
+        "percentile": classified["percentile"],
+        "fleet_rank": classified["fleet_rank"],
         "is_anomaly": classified["is_anomaly"],
         "tier": classified["tier"],
         "contamination": classified["contamination"],
-        "interpretation": "This server exhibits unusual behavior compared to the fleet."
-            if classified["is_anomaly"]
-            else "This server is operating within normal fleet behavior."
+        "reason": classified["reason"],
     }
     if config.SHOW_ADVANCED_METADATA:
         res["metadata"] = raw.get("metadata", {})
     else:
         res["_audit_metadata"] = raw.get("metadata", {})
     return res
+
+
+# ─── Tool 3b: explain_anomaly ──────────────────────────────────────────────
+
+@with_retry
+def explain_anomaly(server_name: str) -> dict:
+    """
+    Full prediction traceability for a server's anomaly detection result.
+    Returns the anomaly score, threshold, percentile, rank, decision,
+    human-readable reason, key observed signals (the raw feature values
+    fed into the model — NOT feature importance), and evidence sources.
+
+    Works for BOTH anomalous AND normal servers.
+    For normal servers: explains WHY the server is NOT anomalous.
+    """
+    raw = _manager.score_iforest(server_name)
+    if "error" in raw:
+        return raw
+
+    classified = classify_anomaly(
+        anomaly_score=raw["anomaly_score"],
+        prediction=raw["isolation_forest_prediction"],
+        threshold=raw.get("threshold", 0.0),
+        percentile=raw.get("percentile", 0.0),
+        fleet_rank=raw.get("fleet_rank", 0),
+        total_servers=raw.get("total_fleet_servers", 0),
+        score_delta=raw.get("score_delta", 0.0),
+    )
+
+    # Key Observed Signals — the raw values fed into the model
+    # NOT feature importance (Isolation Forest has none)
+    feature_vector = _manager.get_server_feature_vector(server_name)
+
+    # Clean evidence source names
+    evidence_sources = _manager.get_telemetry_sources(server_name)
+
+    res = {
+        "server_name": server_name,
+        "model": "Isolation Forest",
+        "model_version": raw.get("metadata", {}).get("model_version", "1.0.0-phase5.2"),
+        "timestamp": raw.get("metadata", {}).get("prediction_timestamp", ""),
+
+        "anomaly_score": raw["anomaly_score"],
+        "threshold": classified["threshold"],
+        "score_delta": classified["score_delta"],
+        "percentile": classified["percentile"],
+        "fleet_rank": classified["fleet_rank"],
+        "total_fleet_servers": raw.get("total_fleet_servers", 0),
+        "decision": "ANOMALY" if classified["is_anomaly"] else "NORMAL",
+
+        "reason": classified["reason"],
+
+        "key_observed_signals": feature_vector,
+
+        "evidence_sources": evidence_sources,
+    }
+    return res
+
 
 
 # ─── Tool 4: predict_failure_12h ───────────────────────────────────────────
@@ -366,29 +431,23 @@ def get_fleet_summary() -> dict:
     """
     Get a fleet-wide health summary across all monitored servers.
     Returns total servers, counts by risk tier, anomalies detected,
-    and the top 5 highest-risk servers.
+    anomaly threshold & score distribution, top 10 anomalies ranked by score,
+    and the top 5 highest-risk servers by failure probability.
     """
     servers = _manager.list_all_servers()
     total = len(servers)
 
-    # Score ALL servers using the latest observation
-    anomaly_count = 0
+    # ── XGBoost Failure Risk Tiers ────────────────────────────────────
     tier_counts = {"NORMAL": 0, "WARNING": 0, "CRITICAL": 0}
     risk_list = []
 
     for srv in servers:
-        # XGBoost 12h prediction
         pred = _manager.score_xgb(srv, horizon="3slot")
         if "error" in pred:
             continue
         classified = classify_failure_risk(pred["failure_probability"], "3slot")
         tier = classified["risk_tier"]
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
-
-        # Isolation Forest
-        iforest = _manager.score_iforest(srv)
-        if not iforest.get("error") and iforest.get("is_anomaly", False):
-            anomaly_count += 1
 
         if tier in ("WARNING", "CRITICAL"):
             risk_list.append({
@@ -397,16 +456,31 @@ def get_fleet_summary() -> dict:
                 "risk_tier": tier
             })
 
-    # Sort highest risk first
     risk_list.sort(key=lambda x: x["failure_probability_pct"], reverse=True)
+
+    # ── Anomaly Detection (from lazy fleet cache) ─────────────────────
+    fleet_stats = _manager.get_fleet_anomaly_stats()
+    top_anomalies = _manager.get_top_anomalies(n=10)
 
     result = {
         "total_servers": total,
         "healthy_normal": tier_counts.get("NORMAL", 0),
         "warning": tier_counts.get("WARNING", 0),
         "critical": tier_counts.get("CRITICAL", 0),
-        "anomalies_detected": anomaly_count,
+
+        # Anomaly detection summary
+        "anomalies_detected": fleet_stats.get("total_anomalies", 0),
+        "anomaly_threshold": fleet_stats.get("threshold", 0.0),
+        "anomaly_threshold_method": fleet_stats.get("threshold_method", ""),
+        "anomaly_rate_pct": fleet_stats.get("anomaly_rate_pct", 0.0),
+        "anomaly_score_distribution": fleet_stats.get("score_distribution", {}),
+
+        # Ranked lists
+        "top_anomalies": top_anomalies,
         "top_5_at_risk": risk_list[:5],
+
+        # Full scores for distribution plotting (demo website)
+        "all_anomaly_scores": fleet_stats.get("all_scores", []),
     }
 
     if config.SHOW_DATA_FRESHNESS:
@@ -546,8 +620,19 @@ TOOL_REGISTRY = {
     "detect_anomaly": {
         "function": detect_anomaly,
         "description": "Run the Isolation Forest anomaly detector on a server. Returns anomaly score, "
-                       "classification (NORMAL/ANOMALOUS), and fleet comparison. Use this to check if a "
-                       "server's current behavior is unusual compared to the fleet.",
+                       "fleet threshold, percentile rank, fleet rank, score delta, classification "
+                       "(NORMAL/ANOMALOUS), and a human-readable reason explaining the decision. "
+                       "Use this for a quick anomaly check.",
+        "parameters": {"server_name": "Exact server hostname"},
+    },
+    "explain_anomaly": {
+        "function": explain_anomaly,
+        "description": "Full prediction traceability for anomaly detection. Returns anomaly score, "
+                       "fleet threshold, percentile, rank, decision, human-readable reason, the key "
+                       "observed signals (raw feature values fed into the model), and evidence sources. "
+                       "Works for BOTH anomalous AND normal servers. MUST be called when a user asks "
+                       "'Why is this server anomalous?', 'Prove this anomaly', 'Why is this NOT anomalous?', "
+                       "or any question about anomaly justification.",
         "parameters": {"server_name": "Exact server hostname"},
     },
     "predict_failure_12h": {
@@ -577,8 +662,9 @@ TOOL_REGISTRY = {
     "get_fleet_summary": {
         "function": get_fleet_summary,
         "description": "Get a fleet-wide infrastructure health summary. Returns total server count, "
-                       "breakdown by risk tier (NORMAL/WARNING/CRITICAL), anomaly count, and the "
-                       "top 5 highest-risk servers. Use for daily health reports or fleet overviews.",
+                       "breakdown by risk tier (NORMAL/WARNING/CRITICAL), anomaly threshold and score "
+                       "distribution, top 10 anomalies ranked by severity, top 5 highest-risk servers "
+                       "by failure probability, and full anomaly score array for distribution plotting.",
         "parameters": {},
     },
     "get_model_metadata": {

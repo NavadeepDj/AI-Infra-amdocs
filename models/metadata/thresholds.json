@@ -2,7 +2,9 @@
   "isolation_forest": {
     "contamination": 0.02,
     "anomaly_score_cutoff": 0.0,
-    "description": "If iforest.predict() == -1 or decision_function < 0.0, flag observation as an infrastructure anomaly."
+    "threshold_method": "percentile_from_contamination",
+    "top_n_anomalies_in_summary": 10,
+    "description": "If iforest.predict() == -1 or decision_function < 0.0, flag observation as an infrastructure anomaly. Threshold is derived as the (1-contamination) percentile of fleet anomaly scores."
   },
   "target_failure_3slot": {
     "lookahead_window": "12 Hours (3 monitoring slots)",

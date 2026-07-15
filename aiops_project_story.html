@@ -698,6 +698,39 @@
             color: var(--text-muted);
             font-size: 0.92rem;
         }
+
+        /* Slot Explorer Custom Styles */
+        .slot-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 0.4rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        @media (max-width: 768px) {
+            .slot-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+        .slot-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: 6px;
+            color: var(--text-muted);
+            padding: 0.4rem 0;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+        .slot-btn:hover, .slot-btn.active {
+            background: rgba(0, 242, 254, 0.15);
+            border-color: var(--accent-cyan);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -864,6 +897,41 @@ and keep both vendor columns so we don't lose any health warnings.</pre>
                     </ul>
                 </div>
 
+                <!-- Interactive Slot Explorer Component -->
+                <div class="slot-explorer" style="margin-top: 1.5rem; margin-bottom: 2rem; background: rgba(0, 0, 0, 0.45); padding: 1.8rem; border-radius: 18px; border: 1px solid var(--border-glass);">
+                    <h4 style="color: var(--accent-cyan); margin-bottom: 0.6rem; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">🕒 Interactive Slot & Time-Bucket Explorer</h4>
+                    <p style="font-size: 0.92rem; color: var(--text-muted); margin-bottom: 1.2rem;">Our multi-vendor tables had slight clock offsets (Ping at 12:00, Dell at 12:02, HPE at 12:05). To join them perfectly without losing alerts, we grouped all timestamps into 24 hourly buckets. <strong>Click a slot below to see its mapping:</strong></p>
+                    <div class="slot-grid">
+                        <button class="slot-btn" onclick="explainSlot(this, 1)">SL-01</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 2)">SL-02</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 3)">SL-03</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 4)">SL-04</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 5)">SL-05</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 6)">SL-06</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 7)">SL-07</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 8)">SL-08</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 9)">SL-09</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 10)">SL-10</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 11)">SL-11</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 12)">SL-12</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 13)">SL-13</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 14)">SL-14</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 15)">SL-15</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 16)">SL-16</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 17)">SL-17</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 18)">SL-18</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 19)">SL-19</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 20)">SL-20</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 21)">SL-21</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 22)">SL-22</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 23)">SL-23</button>
+                        <button class="slot-btn" onclick="explainSlot(this, 24)">SL-24</button>
+                    </div>
+                    <div id="slotExplainText" style="font-size: 0.95rem; padding: 1.2rem; background: rgba(0, 242, 254, 0.07); border-left: 4px solid var(--accent-cyan); border-radius: 8px; min-height: 70px; line-height: 1.55;">
+                        💡 <em>Click any SL (Slot) button above to instantly visualize the temporal hour mapping, the clock offsets we resolved, and the ML lookback window calculation.</em>
+                    </div>
+                </div>
+
                 <div class="phase-grid">
                     <div>
                         <span class="phase-tag">Phase 2 • Data Cleaning, Joins & Building the Gold Dataset (`preprocessing/`)</span>
@@ -925,6 +993,54 @@ Running Post-Merge Gatekeeper Audit (10 Checks)...
                         <li><span class="bullet-star">★</span> <strong>Ping and Hardware Don't Always Fail Together:</strong> A server can reply to network ping checks (`Reachable`) while its internal storage hard drive array is actively melting (`Critical Status = 2`)! If an engineer only monitors ping reachability, they won't know the server is dying until it suddenly shuts off.</li>
                         <li><span class="bullet-star">★</span> <strong>Hardware Degradation Happens 3 to 6 Hours Before a Crash:</strong> When we tracked servers over time, we saw a clear chain reaction: first, a hardware component turns degraded (`1`), then vendor error messages start piling up (`problems_active_sum`), and <strong>3 to 6 hours later (`Slot t+3 to t+6`)</strong>, the machine completely stops responding to ping checks! This proved that predicting failures 12 to 24 hours in advance is entirely possible if we track rate-of-decay over time!</li>
                     </ul>
+                </div>
+
+                <!-- Interactive EDA Tools Explorer Component -->
+                <div class="eda-tools-explorer" style="margin-top: 1.5rem; margin-bottom: 2rem; background: rgba(0, 0, 0, 0.45); padding: 1.8rem; border-radius: 18px; border: 1px solid var(--border-glass);">
+                    <h4 style="color: var(--accent-cyan); margin-bottom: 0.6rem; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">🛠️ The 10 Deterministic Tools Used by the EDA Agent</h4>
+                    <p style="font-size: 0.92rem; color: var(--text-muted); margin-bottom: 1.2rem;">Our Phase 3 EDA Agent used a strict set of 10 Python functions in <code>tools.py</code> to inspect data structures without manual editing. <strong>Hover or click any tool below to see what it verified:</strong></p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: list_datasets\n\nVerified: Scans the datasets directory to find and list all telemetry CSV files.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">1. list_datasets</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Found 7 raw mockup telemetry tables.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: dataset_overview\n\nVerified: Evaluated row counts (45,756 in Ping dataset), columns, and schema formats.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">2. dataset_overview</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Evaluated row count & schema sizes.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: unique_machine_profiler\n\nVerified: Proved there are exactly 246 unique hostnames across all tables.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">3. unique_machine_profiler</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Proved exactly 246 unique servers.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: machine_set_comparison\n\nVerified: Uncovered that 15 HPE machines are a subset of the 26 Dell machines.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">4. machine_set_comparison</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Identified HP/Dell server sets & overlaps.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: machine_ip_relationship\n\nVerified: Confirmed 1-to-1 static IP mapping to server hostnames.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">5. machine_ip_relationship</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Confirmed 1-to-1 IP hostname mapping.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: time_range_profiler\n\nVerified: Discovered earliest & latest observations across a 2-day duration.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">6. time_range_profiler</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Mapped monitoring start & end times.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: monitoring_frequency\n\nVerified: Validated that servers are checked exactly 24 times daily without gaps.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">7. monitoring_frequency</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Confirmed 24 hourly checks per server.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: column_profiler\n\nVerified: Profiled value domains and solved the virtual host missing physical sensor -1 enigma.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">8. column_profiler</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Discovered the -1 Virtual Server Enigma.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: timeline_validator\n\nVerified: Checked for timestamp corruptions, and flagged duplicate slots in 2026-07-03 data.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">9. timeline_validator</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Identified duplicate slots in July 3 files.</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.8rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-glass)'" onclick="alert('Tool: hpe_dell_redundancy_check\n\nVerified: Proved 99.5% agreement rate between Dell and HPE health readings.')">
+                            <strong style="color: var(--accent-cyan); font-family: 'Fira Code', monospace; font-size: 0.88rem;">10. hpe_dell_redundancy</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Proved 99.5% health state match.</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="phase-grid">
@@ -1520,6 +1636,23 @@ SHOW_ADVANCED_METADATA = False
                 confidenceText.innerHTML = `• Rating: <strong style="color: var(--accent-green);">HIGH</strong><br>• Reason: All 9 deterministic tool executions completed successfully with sub-20ms latency. Predictions are strictly grounded in 15-feature exact numeric evidence.`;
                 auditBox.style.display = "none";
             }
+        function explainSlot(btnElement, slotNum) {
+            // Remove active class from all slot buttons
+            const buttons = document.querySelectorAll('.slot-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            btnElement.classList.add('active');
+            
+            // Calculate start and end hours
+            const startHour = (slotNum - 1).toString().padStart(2, '0') + ":00";
+            const endHour = slotNum.toString().padStart(2, '0') + ":00";
+            
+            const txt = `<strong>Slot-${slotNum.toString().padStart(2, '0')}</strong> aligns all telemetry gathered during the 1-hour window between <strong>${startHour} and ${endHour} UTC</strong>.<br>` +
+                        `• <strong>Multi-Vendor Alignment:</strong> Reconciles network Ping checks at ${startHour.replace(':00', ':02')}, Dell controller logs at ${startHour.replace(':00', ':04')}, and HPE health sweeps at ${startHour.replace(':00', ':05')}.<br>` +
+                        `• <strong>ML Lookback Window:</strong> If a model looks back 3 slots, it evaluates Slot-${(slotNum-3 < 1 ? 24+(slotNum-3) : slotNum-3).toString().padStart(2, '0')} through Slot-${slotNum.toString().padStart(2, '0')} (12 hours of telemetry history).`;
+            
+            document.getElementById('slotExplainText').innerHTML = txt;
         }
     </script>
 </body>

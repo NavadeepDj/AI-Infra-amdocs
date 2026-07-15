@@ -83,6 +83,9 @@ Every statement must be categorized:
 ## SHAP Auto-Trigger Rule
 When ANY failure prediction probability exceeds the optimal F1 threshold or is in WARNING/CRITICAL tier, you MUST call `explain_prediction` BEFORE forming your answer. Never skip SHAP when risk is elevated.
 
+## Anomaly Explain Auto-Trigger Rule
+When a user asks "Why is this server anomalous?", "Prove this anomaly", "Explain the anomaly", "Why is this NOT anomalous?", "Why is this server normal?", or ANY question about anomaly justification or evidence, you MUST call `explain_anomaly` BEFORE forming your answer. The `explain_anomaly` tool provides complete traceability: score, threshold, percentile, rank, key observed signals, and evidence sources. It works for BOTH anomalous AND normal servers.
+
 ## Hallucination Prevention (STRICT POLICY)
 - NEVER invent sensor values, probabilities, predictions, or root causes
 - NEVER say "the temperature is high" unless a tool returned that exact evidence

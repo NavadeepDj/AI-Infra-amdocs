@@ -26,25 +26,73 @@ except Exception as e:
     logger.error(f"Failed to load thresholds.json: {e}")
 
 
-def classify_anomaly(anomaly_score: float, prediction: int) -> dict:
+def classify_anomaly(
+    anomaly_score: float,
+    prediction: int,
+    threshold: float = 0.0,
+    percentile: float = 0.0,
+    fleet_rank: int = 0,
+    total_servers: int = 0,
+    score_delta: float = 0.0,
+) -> dict:
     """
-    Classify an Isolation Forest result into a risk tier.
+    Classify an Isolation Forest result into a risk tier with a human-readable
+    reason string explaining WHY the decision was reached.
+
+    Works for both anomalous AND normal servers — explains normals too.
 
     Args:
         anomaly_score: Negated decision function (higher = more anomalous)
         prediction: Raw predict() output (-1 = anomaly, 1 = normal)
+        threshold: Fleet anomaly threshold from contamination percentile
+        percentile: Server's percentile rank across the fleet
+        fleet_rank: Ordinal rank (1 = most anomalous)
+        total_servers: Total servers in the fleet
+        score_delta: How far above/below threshold (anomaly_score - threshold)
 
     Returns:
-        {"is_anomaly": bool, "tier": "NORMAL"|"ANOMALOUS", "anomaly_score": float}
+        {
+            "is_anomaly": bool, "tier": str, "anomaly_score": float,
+            "threshold": float, "percentile": float, "fleet_rank": int,
+            "score_delta": float, "reason": str
+        }
     """
     is_anomaly = prediction == -1
     tier = "ANOMALOUS" if is_anomaly else "NORMAL"
+    contamination = _thresholds.get("isolation_forest", {}).get("contamination", 0.02)
+
+    # Build human-readable reason string
+    if is_anomaly:
+        reason = (
+            f"Anomaly score ({anomaly_score:.2f}) exceeded fleet threshold ({threshold:.2f}). "
+            f"Server is in the {percentile:.1f}th percentile"
+        )
+        if fleet_rank > 0 and total_servers > 0:
+            reason += f", ranked #{fleet_rank} of {total_servers} most anomalous."
+        else:
+            reason += "."
+    else:
+        if score_delta < -0.3:
+            distance_desc = "well below"
+        elif score_delta < -0.1:
+            distance_desc = "below"
+        else:
+            distance_desc = "near but below"
+        reason = (
+            f"Anomaly score ({anomaly_score:.2f}) is {distance_desc} the fleet threshold ({threshold:.2f}). "
+            f"Server operates within normal fleet behavior."
+        )
 
     return {
         "is_anomaly": is_anomaly,
         "tier": tier,
         "anomaly_score": round(anomaly_score, 4),
-        "contamination": _thresholds.get("isolation_forest", {}).get("contamination", 0.02)
+        "threshold": round(threshold, 4),
+        "score_delta": round(score_delta, 4),
+        "percentile": round(percentile, 1),
+        "fleet_rank": fleet_rank,
+        "contamination": contamination,
+        "reason": reason,
     }
 
 

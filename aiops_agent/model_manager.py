@@ -31,6 +31,16 @@ from . import config
 logger = logging.getLogger("aiops_agent.model_manager")
 
 
+def safe_int(val, default=0) -> int:
+    """Safely convert a value to int, handling NaN and None."""
+    if val is None or pd.isna(val):
+        return default
+    try:
+        return int(float(val))
+    except (ValueError, TypeError):
+        return default
+
+
 class SchemaValidationError(Exception):
     """Raised when dataset columns don't match the expected feature schema."""
     pass
@@ -77,6 +87,9 @@ class ModelManager:
                 logger.info(f"  SHAP background sample prepared: {len(bg_data)} rows")
             except Exception as e:
                 logger.warning(f"  SHAP background preparation failed: {e}")
+
+        # ── Fleet Anomaly Cache (Lazy) ────────────────────────────────────
+        self._fleet_anomaly_cache = None  # Computed on first request
 
         # ── Schema Validation ────────────────────────────────────────────
         self._validate_schema()
@@ -216,8 +229,137 @@ class ModelManager:
             return pd.DataFrame()
         return self._df[mask].sort_values("event_time_ping").tail(n_slots)
 
+    def _ensure_fleet_cache(self):
+        """Lazily compute and cache fleet-wide anomaly scores on first access."""
+        if self._fleet_anomaly_cache is None:
+            self._fleet_anomaly_cache = self._compute_fleet_anomaly_scores()
+        return self._fleet_anomaly_cache
+
+    def _compute_fleet_anomaly_scores(self) -> dict:
+        """
+        Score ALL servers at once via vectorized decision_function().
+        Computes threshold from contamination percentile, ranks, and percentiles.
+        Called lazily on first fleet-level or enriched anomaly request.
+        """
+        if self._iforest is None:
+            logger.warning("Cannot compute fleet scores: Isolation Forest not loaded")
+            return {}
+
+        t0 = time.perf_counter()
+
+        # Get latest observation per server
+        latest_idx = self._df.groupby("machine_name")["event_time_ping"].idxmax()
+        latest_df = self._df.loc[latest_idx].copy()
+
+        # Prepare feature matrix
+        X = latest_df[self._iforest_features].copy()
+        X = self._apply_imputation(X, mode="iforest")
+
+        # Vectorized scoring — single call for all servers
+        raw_scores = -self._iforest.decision_function(X)  # Negate: higher = more anomalous
+        predictions = self._iforest.predict(X)
+
+        # Compute threshold from contamination percentile
+        contamination = self._thresholds.get("isolation_forest", {}).get("contamination", 0.02)
+        threshold_percentile = (1.0 - contamination) * 100  # e.g., 98th for contamination=0.02
+        threshold = float(np.percentile(raw_scores, threshold_percentile))
+
+        # Build per-server results
+        server_names = latest_df["machine_name"].values
+        scores_array = raw_scores.astype(float)
+
+        # Compute percentile for each server
+        sorted_scores = np.sort(scores_array)
+        server_scores = {}
+        for i, srv in enumerate(server_names):
+            score = float(scores_array[i])
+            # percentileofscore: what percentage of scores are <= this score
+            pct = float(np.searchsorted(sorted_scores, score, side='right') / len(sorted_scores) * 100)
+            server_scores[srv] = {
+                "anomaly_score": round(score, 4),
+                "prediction": int(predictions[i]),
+                "is_anomaly": int(predictions[i]) == -1,
+                "percentile": round(pct, 1),
+            }
+
+        # Rank by score descending (rank 1 = most anomalous)
+        ranked = sorted(server_scores.items(), key=lambda x: x[1]["anomaly_score"], reverse=True)
+        for rank, (srv, data) in enumerate(ranked, start=1):
+            data["fleet_rank"] = rank
+            data["score_delta"] = round(data["anomaly_score"] - threshold, 4)
+
+        # Fleet statistics
+        total_anomalies = sum(1 for d in server_scores.values() if d["is_anomaly"])
+
+        cache = {
+            "server_scores": server_scores,
+            "threshold": round(threshold, 4),
+            "threshold_percentile": threshold_percentile,
+            "contamination": contamination,
+            "total_servers": len(server_scores),
+            "total_anomalies": total_anomalies,
+            "anomaly_rate_pct": round(total_anomalies / max(len(server_scores), 1) * 100, 1),
+            "score_distribution": {
+                "min": round(float(np.min(scores_array)), 4),
+                "max": round(float(np.max(scores_array)), 4),
+                "mean": round(float(np.mean(scores_array)), 4),
+                "median": round(float(np.median(scores_array)), 4),
+                "std": round(float(np.std(scores_array)), 4),
+            },
+            "all_scores_sorted": [round(float(s), 4) for s in sorted_scores],
+            "ranked_servers": [(srv, data) for srv, data in ranked],
+        }
+
+        latency_ms = (time.perf_counter() - t0) * 1000
+        logger.info(f"  Fleet anomaly scores computed in {latency_ms:.0f}ms | "
+                     f"{cache['total_anomalies']} anomalies / {cache['total_servers']} servers | "
+                     f"threshold={cache['threshold']}")
+        return cache
+
+    def get_fleet_anomaly_stats(self) -> dict:
+        """
+        Return fleet-level anomaly distribution statistics.
+        Lazy-computed on first call.
+        """
+        cache = self._ensure_fleet_cache()
+        if not cache:
+            return {"error": "Fleet anomaly cache unavailable (Isolation Forest not loaded)"}
+
+        return {
+            "threshold": cache["threshold"],
+            "threshold_method": f"{cache['threshold_percentile']:.0f}th percentile (contamination={cache['contamination']})",
+            "total_servers": cache["total_servers"],
+            "total_anomalies": cache["total_anomalies"],
+            "anomaly_rate_pct": cache["anomaly_rate_pct"],
+            "score_distribution": cache["score_distribution"],
+            "all_scores": cache["all_scores_sorted"],
+        }
+
+    def get_top_anomalies(self, n: int = 10) -> list[dict]:
+        """Return the top N most anomalous servers, ranked by score."""
+        cache = self._ensure_fleet_cache()
+        if not cache:
+            return []
+
+        result = []
+        for srv, data in cache["ranked_servers"][:n]:
+            if not data["is_anomaly"]:
+                break  # Stop once we're past anomalies
+            result.append({
+                "server_name": srv,
+                "anomaly_score": data["anomaly_score"],
+                "fleet_rank": data["fleet_rank"],
+                "percentile": data["percentile"],
+                "score_delta": data["score_delta"],
+            })
+        return result
+
     def score_iforest(self, server_name: str) -> dict:
-        """Score a single server with the Isolation Forest anomaly detector."""
+        """
+        Score a single server with the Isolation Forest anomaly detector.
+        Returns enriched output with threshold, percentile, rank, and score delta
+        pulled from the lazy-computed fleet cache.
+        """
         if self._iforest is None:
             return {"error": "Isolation Forest model not available", "model": "isolation_forest.joblib"}
 
@@ -236,20 +378,79 @@ class ModelManager:
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
         contamination = self._thresholds.get("isolation_forest", {}).get("contamination", 0.02)
 
+        # Enrich with fleet context from lazy cache
+        cache = self._ensure_fleet_cache()
+        fleet_data = cache.get("server_scores", {}).get(server_name, {}) if cache else {}
+
+        threshold = cache.get("threshold", 0.0) if cache else 0.0
+        percentile = fleet_data.get("percentile", 0.0)
+        fleet_rank = fleet_data.get("fleet_rank", 0)
+        score_delta = round(score - threshold, 4)
+        total_servers = cache.get("total_servers", 0) if cache else 0
+
         return {
             "server_name": server_name,
             "anomaly_score": round(score, 4),
             "is_anomaly": is_anomaly,
             "isolation_forest_prediction": prediction,
+            "threshold": threshold,
+            "score_delta": score_delta,
+            "percentile": percentile,
+            "fleet_rank": fleet_rank,
+            "total_fleet_servers": total_servers,
             "contamination": contamination,
             "metadata": {
                 "model_name": "isolation_forest.joblib",
                 "model_version": "1.0.0-phase5.2",
-                "decision_threshold": 0.0,
+                "threshold_method": f"{(1-contamination)*100:.0f}th percentile",
                 "prediction_timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "inference_latency_ms": latency_ms
             }
         }
+
+    def get_server_feature_vector(self, server_name: str) -> dict:
+        """
+        Return the imputed feature vector for a server as a human-readable dict.
+        Hardware status codes are mapped to labels (OK, Warning, Critical).
+        These are the 'Key Observed Signals' — the raw values fed into the model.
+        """
+        row = self.get_server_row(server_name)
+        if row is None:
+            return {"error": f"Server '{server_name}' not found"}
+
+        X = pd.DataFrame([row[self._iforest_features]])
+        X = self._apply_imputation(X, mode="iforest")
+        feature_row = X.iloc[0]
+
+        hw_status_map = {-1: "No Sensor", 0: "OK", 1: "Warning", 2: "Critical"}
+        hw_cols = {col for col, _ in config.HARDWARE_SUBSYSTEMS}
+
+        result = {}
+        for feat in self._iforest_features:
+            val = feature_row[feat]
+            if feat in hw_cols:
+                result[feat] = hw_status_map.get(int(val), f"Unknown ({val})")
+            else:
+                result[feat] = round(float(val), 4) if isinstance(val, (float, np.floating)) else int(val)
+        return result
+
+    def get_telemetry_sources(self, server_name: str) -> list[str]:
+        """
+        Return clean evidence source names based on which vendor data is present.
+        Always includes 'Ping Status Monitoring'. Adds vendor-specific sources
+        based on has_dell / has_hpe flags.
+        """
+        row = self.get_server_row(server_name)
+        if row is None:
+            return []
+
+        sources = ["Ping Status Monitoring"]
+        if safe_int(row.get("has_dell", 0)) == 1:
+            sources.append("Dell iDRAC Health")
+        if safe_int(row.get("has_hpe", 0)) == 1:
+            sources.append("HPE iLO Health")
+        return sources
+
 
     def score_xgb(self, server_name: str, horizon: str = "3slot") -> dict:
         """Score a single server with XGBoost failure prediction."""
